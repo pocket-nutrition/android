@@ -1,0 +1,191 @@
+{
+  "suite": "food-group-icon",
+  "description": "Category glyph for a curated ingredient, which never carries a product photo. The vocabulary is closed — 21 values enumerated in pocket-nutrition-knowledge/schemas/ingredient.schema.json — and this maps 18 of them. sauce, seaweed and other are unmapped on purpose: no glyph reads unambiguously as any of them and a wrong icon is worse than none, so `expected` is null, never an empty string. Every mapped glyph is distinct, because two groups sharing one icon would defeat the point of a list meant to tell rows apart. Products and recipes are always food_group \"other\" server-side, so this never distinguishes a product from an ingredient — productType does.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "vegetable",
+      "why": "The largest group in the catalogue (381 ingredients), so the single most-rendered icon.",
+      "input": {
+        "foodGroup": "vegetable"
+      },
+      "expected": "🥦"
+    },
+    {
+      "id": "cereal",
+      "why": "Second-largest mapped group (279). 🌾 is the grain rather than a bread loaf, which is baked_good — a port that conflates the two breaks here.",
+      "input": {
+        "foodGroup": "cereal"
+      },
+      "expected": "🌾"
+    },
+    {
+      "id": "meat",
+      "why": "266 ingredients, and the pair-half of processed_meat below. Both must be present and distinct or cured and fresh meats render identically.",
+      "input": {
+        "foodGroup": "meat"
+      },
+      "expected": "🥩"
+    },
+    {
+      "id": "processed-meat-is-not-the-same-glyph-as-meat",
+      "why": "The other half of that pair. A port that maps both to 🥩 still passes the meat case.",
+      "input": {
+        "foodGroup": "processed_meat"
+      },
+      "expected": "🥓"
+    },
+    {
+      "id": "spice-herb-uses-the-underscored-key",
+      "why": "243 ingredients behind a snake_case key. A port that camel-cases vocabulary keys breaks on this one, nut_seed and prepared_dish, and nowhere else.",
+      "input": {
+        "foodGroup": "spice_herb"
+      },
+      "expected": "🌿"
+    },
+    {
+      "id": "dairy-is-cheese-not-a-glass-of-milk",
+      "why": "🥛 was rejected because it is already the `glass` serving unit in serving-unit-emoji, and one glyph meaning two different things in the same UI is the collision this map avoids.",
+      "input": {
+        "foodGroup": "dairy"
+      },
+      "expected": "🧀"
+    },
+    {
+      "id": "fruit",
+      "why": "214 ingredients. Distinct from vegetable, which a single produce glyph would have merged.",
+      "input": {
+        "foodGroup": "fruit"
+      },
+      "expected": "🍎"
+    },
+    {
+      "id": "sweetener",
+      "why": "195 ingredients. 🍯 is why `sauce` could not also be a jar — see the sauce case.",
+      "input": {
+        "foodGroup": "sweetener"
+      },
+      "expected": "🍯"
+    },
+    {
+      "id": "fish",
+      "why": "195 ingredients, and distinct from shellfish below.",
+      "input": {
+        "foodGroup": "fish"
+      },
+      "expected": "🐟"
+    },
+    {
+      "id": "shellfish-is-not-the-same-glyph-as-fish",
+      "why": "Only 47 ingredients, so easy to drop while every fish case still passes.",
+      "input": {
+        "foodGroup": "shellfish"
+      },
+      "expected": "🦐"
+    },
+    {
+      "id": "baked-good",
+      "why": "138 ingredients. Snake_case key, and distinct from cereal.",
+      "input": {
+        "foodGroup": "baked_good"
+      },
+      "expected": "🥐"
+    },
+    {
+      "id": "legume",
+      "why": "134 ingredients. 🫘 is a recent codepoint — a port on an old font stack renders tofu, which is a rendering problem rather than a mapping one, and the string must still match.",
+      "input": {
+        "foodGroup": "legume"
+      },
+      "expected": "🫘"
+    },
+    {
+      "id": "beverage-is-not-alcohol",
+      "why": "134 ingredients, and the pair-half of alcohol. Merging them would put wine and orange juice under one glyph.",
+      "input": {
+        "foodGroup": "beverage"
+      },
+      "expected": "🥤"
+    },
+    {
+      "id": "alcohol",
+      "why": "The other half of that pair, 100 ingredients.",
+      "input": {
+        "foodGroup": "alcohol"
+      },
+      "expected": "🍷"
+    },
+    {
+      "id": "fat",
+      "why": "125 ingredients — cooking oils, butters and lards. 🧈 rather than a bottle, which would have read as beverage.",
+      "input": {
+        "foodGroup": "fat"
+      },
+      "expected": "🧈"
+    },
+    {
+      "id": "nut-seed",
+      "why": "95 ingredients behind another snake_case key.",
+      "input": {
+        "foodGroup": "nut_seed"
+      },
+      "expected": "🥜"
+    },
+    {
+      "id": "prepared-dish-must-not-reuse-the-recipe-glyph",
+      "why": "🍲 was rejected because the suggestion list already uses it to mark a recipe row, and a prepared_dish ingredient wearing it would look like something that expands into a meal.",
+      "input": {
+        "foodGroup": "prepared_dish"
+      },
+      "expected": "🍱"
+    },
+    {
+      "id": "egg",
+      "why": "The smallest group (16 ingredients), so the one most likely to be missed.",
+      "input": {
+        "foodGroup": "egg"
+      },
+      "expected": "🥚"
+    },
+    {
+      "id": "sauce-has-no-icon",
+      "why": "The second-largest group in the whole catalogue (294) and still unmapped, which is the point: no glyph reads as \"sauce\" rather than as a jar, a bottle, or the 🍯 already taken by sweetener. 294 neutral placeholders beat 294 misleading ones.",
+      "input": {
+        "foodGroup": "sauce"
+      },
+      "expected": null
+    },
+    {
+      "id": "seaweed-has-no-icon",
+      "why": "In the vocabulary (29 ingredients), no glyph available. Distinguishes \"no icon chosen\" from \"group not known\", which a client must treat identically.",
+      "input": {
+        "foodGroup": "seaweed"
+      },
+      "expected": null
+    },
+    {
+      "id": "other-has-no-icon",
+      "why": "The catch-all, and the value the server assigns to every Open Food Facts product and every recipe. If this returned a glyph, every product without a photo would get it and the icon would stop meaning anything.",
+      "input": {
+        "foodGroup": "other"
+      },
+      "expected": null
+    },
+    {
+      "id": "a-group-outside-the-vocabulary-has-no-icon",
+      "why": "Knowledge can add a group to the schema before this map follows. The result is a missing icon, never a placeholder glyph and never an error.",
+      "input": {
+        "foodGroup": "condiment"
+      },
+      "expected": null
+    },
+    {
+      "id": "null-food-group-has-no-icon",
+      "why": "The field is nullable on the wire. A port that indexes the map without a null guard throws here instead of rendering a row.",
+      "input": {
+        "foodGroup": null
+      },
+      "expected": null
+    }
+  ]
+}

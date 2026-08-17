@@ -1,0 +1,61 @@
+{
+  "suite": "selection-mode",
+  "description": "Whether tapping a search row toggles a selection instead of adding the food immediately. True when the query was split into more than one ingredient phrase — the X-Segment-Count header, NEVER a client-side space count, because the server segments with greedy longest-match probes against the index and \"pomme de terre\" is one term. Recipes are the exception and always add immediately: a recipe is not one of the query's terms, it unpacks into a whole meal on its own. A missing or unparseable header must be read as 1, which degrades to single-add rather than to a broken picker.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "single-term-adds-immediately",
+      "why": "The common case, and the one that must cost nothing: one term typed, one tap, food added. If this ever returned true the feature would have made ordinary search worse.",
+      "input": {
+        "termCount": 1,
+        "productType": "ingredient"
+      },
+      "expected": false
+    },
+    {
+      "id": "multi-term-ingredient-toggles",
+      "why": "Three terms means the person is composing a meal, so a tap accumulates a selection they confirm once instead of forcing three search-type-tap cycles.",
+      "input": {
+        "termCount": 3,
+        "productType": "ingredient"
+      },
+      "expected": true
+    },
+    {
+      "id": "multi-term-recipe-still-adds-immediately",
+      "why": "THE EXCEPTION, and the reason this suite exists. A recipe unpacks into several rows by itself, so it is not one of the query's terms and checkbox semantics do not apply. A port that drops this branch makes recipes un-addable on any two-word query, silently.",
+      "input": {
+        "termCount": 3,
+        "productType": "recipe"
+      },
+      "expected": false
+    },
+    {
+      "id": "multi-term-product-toggles",
+      "why": "An Open Food Facts product is an ordinary selectable row — the recipe exception is about recipes specifically, not about \"anything that is not a curated ingredient\".",
+      "input": {
+        "termCount": 2,
+        "productType": "off_product"
+      },
+      "expected": true
+    },
+    {
+      "id": "a-missing-product-type-toggles-on-multi-term",
+      "why": "productType is optional on the wire. An absent value must not accidentally take the recipe branch — the exception is for rows that ARE recipes, and an unknown row is not one.",
+      "input": {
+        "termCount": 2,
+        "productType": null
+      },
+      "expected": true
+    },
+    {
+      "id": "zero-terms-adds-immediately",
+      "why": "The server returns segment count 0 for a blank query, and a client that read `> 1` as `!== 1` would toggle here. Reachable while the field is being cleared.",
+      "input": {
+        "termCount": 0,
+        "productType": "ingredient"
+      },
+      "expected": false
+    }
+  ]
+}

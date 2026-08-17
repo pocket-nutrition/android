@@ -1,0 +1,277 @@
+{
+  "suite": "shortcut-profile",
+  "description": "The row of at most four quick buttons under the value field. With no usable serving unit it is the three base-portion multipliers (Demi / 1 Part / Double). With at least one, it becomes a single \"1 Part\" anchor plus up to three Knowledge increments. The item unit is excluded because the multipliers already cover it, and units rounding below 1 are dropped. INVARIANT: the result always has between 2 and 4 entries. The client never invents a volumetric unit — an absent one is a gap to fill in Knowledge.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "no-serving-units-gives-three-multipliers",
+      "why": "The fallback shape. Note it is 3 entries, not 4 — no anchor is added on this path.",
+      "input": {
+        "servingUnits": [],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "Demi",
+          "factor": 0.5
+        },
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "multiplier",
+          "label": "Double",
+          "factor": 2
+        }
+      ]
+    },
+    {
+      "id": "item-unit-is-excluded",
+      "why": "A countable item is already covered by the multipliers, so offering \"1 carotte\" next to \"1 Part\" would be the same button twice. Filtering it out leaves nothing, so the row falls back to the three multipliers.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74,
+            "unit": "item"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "Demi",
+          "factor": 0.5
+        },
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "multiplier",
+          "label": "Double",
+          "factor": 2
+        }
+      ]
+    },
+    {
+      "id": "anchor-plus-knowledge-increments",
+      "why": "The mixed shape: exactly one multiplier, then the Knowledge units in the order given. They are not sorted by weight — the order is whatever Knowledge returned.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "cuillère à soupe",
+            "volumeMl": 0,
+            "grams": 15,
+            "unit": "tablespoon"
+          },
+          {
+            "labelFr": "tasse",
+            "volumeMl": 0,
+            "grams": 180,
+            "unit": "cup"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "increment",
+          "label": "cuillère à soupe",
+          "emoji": "🥄",
+          "grams": 15
+        },
+        {
+          "kind": "increment",
+          "label": "tasse",
+          "emoji": "🥣",
+          "grams": 180
+        }
+      ]
+    },
+    {
+      "id": "millilitres-read-volumeMl-not-grams",
+      "why": "For a volume food the increment comes from volumeMl, while the output field is still called `grams` — a naming wart worth knowing before porting. Reading `grams` from the input here would give 0, and the unit would then be dropped as sub-gram.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "cuillère à soupe",
+            "volumeMl": 15,
+            "grams": 0,
+            "unit": "tablespoon"
+          }
+        ],
+        "displayUnit": "ml"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "increment",
+          "label": "cuillère à soupe",
+          "emoji": "🥄",
+          "grams": 15
+        }
+      ]
+    },
+    {
+      "id": "caps-the-row-at-four",
+      "why": "Four serving units give one anchor plus three increments; the fourth unit (glass) is dropped. The cap applies to increments, so the anchor is always kept on this path.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "c. à café",
+            "volumeMl": 0,
+            "grams": 5,
+            "unit": "teaspoon"
+          },
+          {
+            "labelFr": "c. à soupe",
+            "volumeMl": 0,
+            "grams": 15,
+            "unit": "tablespoon"
+          },
+          {
+            "labelFr": "tasse",
+            "volumeMl": 0,
+            "grams": 180,
+            "unit": "cup"
+          },
+          {
+            "labelFr": "verre",
+            "volumeMl": 0,
+            "grams": 200,
+            "unit": "glass"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "increment",
+          "label": "c. à café",
+          "emoji": "🥄",
+          "grams": 5
+        },
+        {
+          "kind": "increment",
+          "label": "c. à soupe",
+          "emoji": "🥄",
+          "grams": 15
+        },
+        {
+          "kind": "increment",
+          "label": "tasse",
+          "emoji": "🥣",
+          "grams": 180
+        }
+      ]
+    },
+    {
+      "id": "drops-units-that-round-below-one",
+      "why": "A 0.2 g pinch rounds to 0 and would be a button that adds nothing. Dropping it empties the increment list, so the multipliers come back.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "pincée",
+            "volumeMl": 0,
+            "grams": 0.2,
+            "unit": "pinch"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "Demi",
+          "factor": 0.5
+        },
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "multiplier",
+          "label": "Double",
+          "factor": 2
+        }
+      ]
+    },
+    {
+      "id": "rounds-the-increment-weight",
+      "why": "Increment weights are rounded once, here, with the half-up rule: 15.5 g becomes 16, not 15. The unit keeps its precise weight in Knowledge.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "c. à soupe",
+            "volumeMl": 0,
+            "grams": 15.5,
+            "unit": "tablespoon"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "increment",
+          "label": "c. à soupe",
+          "emoji": "🥄",
+          "grams": 16
+        }
+      ]
+    },
+    {
+      "id": "unknown-unit-has-no-emoji",
+      "why": "The emoji map is cosmetic and closed. An unrecognised unit renders with no icon rather than a placeholder or an error, so in the emitted JSON the `emoji` key is ABSENT, not null. A port must model it as optional.",
+      "input": {
+        "servingUnits": [
+          {
+            "labelFr": "boule",
+            "volumeMl": 0,
+            "grams": 50,
+            "unit": "scoop"
+          }
+        ],
+        "displayUnit": "g"
+      },
+      "expected": [
+        {
+          "kind": "multiplier",
+          "label": "1 Part",
+          "factor": 1
+        },
+        {
+          "kind": "increment",
+          "label": "boule",
+          "grams": 50
+        }
+      ]
+    }
+  ]
+}

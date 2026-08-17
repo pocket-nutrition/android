@@ -1,0 +1,1080 @@
+{
+  "$description": "French copy deck. Extracted VERBATIM from pocket-nutrition-sandbox — the product is French-only and all three clients must show identical wording, so this is the single source a porter copies from rather than retranslating. Keys are stable identifiers; only `fr` and `placeholder` values are translatable.",
+  "$extensions": {
+    "pn.source": "pocket-nutrition-sandbox/src (App.tsx, components/**, lib/feedbackCatalog.ts)",
+    "pn.interpolation": "Placeholders are {braced}. The sandbox builds these with template literals; a port must substitute the same named values. Where a count drives a plural the rule is stated in `plural` — note it is French (singular at 0 and 1, plural from 2), not English.",
+    "pn.scope": "Every entry carries `scope`: `shared` = reproduce in the native apps AND the sandbox; `sandbox` = specific to the web user-testing prototype and NOT to be ported; `app` = specific to the native apps and NOT present in the sandbox. The welcome screen and the API-gaps panel are researcher/developer surfaces, not product. The journal is the mirror case: the apps persist a local diary, the sandbox persists nothing, so that whole group is `app`.",
+    "pn.apostropheInconsistency": "KNOWN DEFECT, recorded rather than silently fixed. The sandbox mixes the ASCII apostrophe (U+0027) with the typographic apostrophe (U+2019): compare mealBuilder.skipped.one (’) against welcome.step1 ('). French typography wants U+2019 throughout. Values below are verbatim so the inconsistency stays visible; normalising is a copy decision for the design owner, and once taken it should be applied to the sandbox and to this file in the same change.",
+    "pn.emojiInconsistency": "KNOWN DEFECT. The `boiled` method is 🫧 in the method picker (IngredientCard.tsx) and 💧 in the lane header (cookingMeta.ts) — two glyphs for one method on one screen. tokens/cooking-palette.json must record exactly one."
+  },
+  "app": {
+    "name": {
+      "fr": "Nutrition Sandbox",
+      "scope": "sandbox",
+      "context": "Header wordmark of the prototype. The apps use the product name instead."
+    },
+    "brand": {
+      "fr": "Pocket Nutrition",
+      "scope": "shared",
+      "context": "Product name. Never translated."
+    },
+    "apiLink": {
+      "fr": "API ↗",
+      "scope": "sandbox",
+      "context": "Header link to the public API."
+    }
+  },
+  "welcome": {
+    "$comment": "The whole welcome screen is scope=sandbox: it recruits usability-test participants. The native apps have their own onboarding.",
+    "title": {
+      "fr": "Test d'ergonomie",
+      "scope": "sandbox"
+    },
+    "intro": {
+      "fr": "Cette application est un prototype conçu pour évaluer la facilité et l'intuitivité du formulaire de saisie d'un repas.",
+      "scope": "sandbox",
+      "context": "\"prototype\" is bold in the markup."
+    },
+    "howToTitle": {
+      "fr": "Comment participer",
+      "scope": "sandbox"
+    },
+    "step1": {
+      "fr": "Saisissez le repas que vous avez mangé aujourd'hui, ou un repas typique de votre semaine.",
+      "scope": "sandbox"
+    },
+    "step2": {
+      "fr": "Testez les options — méthode de cuisson, portions, ajout de plusieurs aliments.",
+      "scope": "sandbox"
+    },
+    "step3": {
+      "fr": "Cliquez sur « Analyser » : l'application affichera les valeurs nutritionnelles estimées.",
+      "scope": "sandbox",
+      "context": "French guillemets."
+    },
+    "step4": {
+      "fr": "Vous pouvez recommencer autant de fois que vous le souhaitez pour tester différents scénarios.",
+      "scope": "sandbox"
+    },
+    "privacy": {
+      "fr": "Aucune donnée personnelle n'est conservée. Les résultats sont des estimations à titre indicatif.",
+      "scope": "sandbox",
+      "context": "The apps need their own privacy copy — they DO persist a local diary, so this sentence would be false there."
+    },
+    "start": {
+      "fr": "Commencer la saisie →",
+      "scope": "sandbox"
+    },
+    "thanks": {
+      "fr": "Merci pour votre participation 🙏",
+      "scope": "sandbox"
+    },
+    "restart": {
+      "fr": "Refaire un test",
+      "scope": "sandbox"
+    }
+  },
+  "journal": {
+    "$comment": "The native apps keep a local food diary; the sandbox keeps nothing. There is therefore no sandbox wording to extract for this group — it was written for the apps and belongs to them.",
+    "title": {
+      "fr": "Mon journal",
+      "scope": "app",
+      "context": "Home screen title. The app opens here, not on a meal builder."
+    },
+    "empty": {
+      "fr": "Aucun repas enregistré pour le moment",
+      "scope": "app",
+      "context": "Empty state, paired with a 🥗 glyph, as mealBuilder.empty is."
+    },
+    "add": {
+      "fr": "Ajouter un repas",
+      "scope": "app",
+      "context": "Primary action. Opens the meal builder."
+    },
+    "delete": {
+      "fr": "Supprimer",
+      "scope": "app",
+      "context": "Removes one saved meal. Destructive and unconfirmed — an entry is cheap to re-add."
+    },
+    "privacy": {
+      "fr": "Vos repas sont enregistrés uniquement sur cet appareil.",
+      "scope": "app",
+      "context": "Shown on the empty state, where the user is deciding whether to start a diary at all. REQUIRED, not optional: welcome.privacy (\"Aucune donnée personnelle n’est conservée\") is FALSE for the apps, so shipping that line there would be a false privacy claim."
+    }
+  },
+  "about": {
+    "$comment": "The about/licences screen. Wholly `app`: the sandbox is a hosted prototype with no store listing, no licence obligation to its visitors and nothing to attribute in-product. Three obligations meet on this one screen — MPL-2.0 §3.2 (a recipient of the executable must be told their rights), the ODbL attribution the Open Food Facts data carries, and the reachable privacy-policy URL both consoles demand before a listing can be submitted. The wording below is a SUMMARY of website.pocketnutrition.org/privacy.html and must not outrun it: if the policy and this screen ever disagree, the app is making a privacy claim nobody reviewed.",
+    "title": {
+      "fr": "À propos",
+      "scope": "app",
+      "context": "Screen title, reached from the journal."
+    },
+    "version": {
+      "fr": "Version {version}",
+      "scope": "app",
+      "context": "{version} is the marketing version — CalVer YYYY.MM.PATCH, e.g. 2026.08.3. Shown because a bug report without it is unactionable."
+    },
+    "privacyTitle": {
+      "fr": "Confidentialité",
+      "scope": "app"
+    },
+    "privacySummary": {
+      "fr": "Votre journal reste sur cet appareil. Aucun compte, aucune publicité, aucun traceur.",
+      "scope": "app",
+      "context": "Condenses the policy's own \"En résumé\" line. Deliberately makes no claim about the network — privacyNetwork does that, because a summary that stopped here would read as \"nothing is ever sent\", which is false."
+    },
+    "privacyNetwork": {
+      "fr": "Une recherche envoie le texte saisi. Une analyse envoie les aliments, les quantités et les cuissons. Aucun identifiant n’accompagne ces requêtes.",
+      "scope": "app",
+      "context": "The two endpoints the app contacts, stated in the app rather than only in the policy. This is the sentence that keeps privacySummary honest."
+    },
+    "privacyLink": {
+      "fr": "Lire la politique de confidentialité",
+      "scope": "app",
+      "context": "Opens the hosted policy. The same URL the store listings declare."
+    },
+    "sourcesTitle": {
+      "fr": "Sources des données",
+      "scope": "app"
+    },
+    "sourcesBody": {
+      "fr": "Valeurs nutritionnelles : table Ciqual (ANSES). Produits, marques et photos : Open Food Facts, sous licence ODbL.",
+      "scope": "app",
+      "context": "ATTRIBUTION, not credits. The app displays Open Food Facts labels, brands and product photographs; the Open Database License requires that attribution wherever the database is publicly used. Removing this line would be a licence breach, not a copy edit."
+    },
+    "licenceTitle": {
+      "fr": "Licence",
+      "scope": "app"
+    },
+    "licenceBody": {
+      "fr": "Cette application est un logiciel libre, publié sous licence Mozilla Public License 2.0. Vous pouvez en consulter, en modifier et en redistribuer le code source.",
+      "scope": "app",
+      "context": "MPL-2.0 §3.2 requires that recipients of the executable be informed of these rights. The repository LICENSE file reaches developers; this screen is what reaches the person who installed the app."
+    },
+    "sourceLink": {
+      "fr": "Voir le code source",
+      "scope": "app",
+      "context": "Opens the public repository. Verified unauthenticated-reachable before shipping — a source link behind a login would make the licenceBody claim untrue in practice."
+    },
+    "thirdPartyTitle": {
+      "fr": "Composants tiers",
+      "scope": "app"
+    },
+    "thirdPartyNone": {
+      "fr": "Aucune dépendance externe.",
+      "scope": "app",
+      "context": "iOS only, and true today: the target links nothing beyond the system frameworks. Android renders a list of components instead — their names and licence identifiers are proper nouns, not translatable copy, so they live in the client."
+    },
+    "close": {
+      "fr": "Fermer",
+      "scope": "app",
+      "context": "Dismisses the screen. Distinct from feedback.close only by group; same word."
+    }
+  },
+  "mealBuilder": {
+    "heading": {
+      "fr": "Composez votre repas",
+      "scope": "shared"
+    },
+    "empty": {
+      "fr": "Recherchez un aliment ci-dessus pour commencer",
+      "scope": "shared",
+      "context": "Empty state, paired with a 🥗 glyph."
+    },
+    "analyse": {
+      "fr": "Analyser le repas ({count} aliment{s})",
+      "scope": "shared",
+      "plural": "{s} is \"s\" when count > 1, empty otherwise",
+      "context": "Primary submit button."
+    },
+    "analysing": {
+      "fr": "Analyse en cours…",
+      "scope": "shared",
+      "context": "Single-character ellipsis U+2026, not three dots."
+    },
+    "dropHere": {
+      "fr": "Déposer ici",
+      "scope": "shared",
+      "context": "Placeholder inside an empty cooking lane."
+    },
+    "skipped": {
+      "one": {
+        "fr": "1 aliment n’a pas pu être ajouté",
+        "scope": "shared"
+      },
+      "many": {
+        "fr": "{count} aliments n’ont pas pu être ajoutés",
+        "scope": "shared",
+        "plural": "used when count > 1"
+      },
+      "reason": {
+        "fr": " : l’API n’a fourni ni portion de référence (servingG) ni état de consommation exploitable (typicalState, portionMeasuredState). Cette lacune se comble dans Knowledge — le sandbox n’invente aucun poids.",
+        "scope": "shared",
+        "context": "Appended to `one`/`many`. The three field names render as inline code. An app must reword the trailing clause — \"le sandbox\" is the wrong subject there — but must keep the substance, since this is the user-facing expression of the never-invent-food-data rule."
+      },
+      "dismiss": {
+        "fr": "Masquer l’avertissement",
+        "scope": "shared",
+        "context": "Accessibility label on the ✕ button."
+      }
+    },
+    "quantity": {
+      "fr": "Quantité",
+      "scope": "app",
+      "context": "Label beside the grams field on an expanded row."
+    },
+    "cooking": {
+      "fr": "Cuisson",
+      "scope": "app",
+      "context": "Label above the cooking-method picker. The sandbox needs no such label: its method is implied by which drop-lane a card sits in, and the apps have no lanes."
+    },
+    "remove": {
+      "fr": "Retirer",
+      "scope": "app",
+      "context": "Removes one row from the meal being composed."
+    }
+  },
+  "search": {
+    "placeholder": {
+      "fr": "Ajouter un ou plusieurs aliments… (riz poulet pomme)",
+      "scope": "shared",
+      "context": "The parenthetical teaches multi-term search, which is what makes X-Segment-Count meaningful."
+    },
+    "noResults": {
+      "fr": "Aucun résultat",
+      "scope": "shared"
+    },
+    "showMore": {
+      "fr": "Voir plus",
+      "scope": "sandbox",
+      "context": "Reveals 6 more rows per tap. SANDBOX ONLY, and re-scoped from `shared` when the native clients gained multi-term search: both scroll a capped window instead, because scrolling is the phone's default gesture and a load-more button costs a tap per step. Left at `shared` this would have told a porter to build a control neither app wants."
+    },
+    "multiTermHint": {
+      "fr": "Plusieurs aliments d'un coup : « riz poulet pomme »",
+      "scope": "app",
+      "context": "Sits under the search field and teaches multi-term search, which is otherwise undiscoverable — nothing about a search field suggests that typing three words does anything different. It exists because `placeholder` cannot do this job on a phone: at 51 characters against a field that fits roughly 22, the parenthetical carrying the lesson is exactly what gets truncated. Shown only while the query is a single term; once the server reports a second, the hint has done its work and goes. `app` scope because the sandbox teaches the same thing through its own long placeholder."
+    },
+    "alreadyAdded": {
+      "fr": "Déjà ajouté",
+      "scope": "shared",
+      "context": "Badge on a suggestion already in the meal."
+    },
+    "productBadge": {
+      "fr": "Produit",
+      "scope": "shared",
+      "context": "Marks an Open Food Facts packaged product rather than a Knowledge ingredient."
+    },
+    "sectionRecipes": {
+      "fr": "Recettes",
+      "scope": "shared",
+      "context": "Section header above the recipe rows, which deduplicate-suggestions pins to the top of the list. Before these headers existed the list was flat, and a recipe — the highest-value result, one tap becoming a whole meal — was indistinguishable from an ingredient."
+    },
+    "sectionIngredients": {
+      "fr": "Ingrédients",
+      "scope": "shared",
+      "context": "Section header above curated Knowledge ingredients: productType 'ingredient'. These carry yield factors, serving units and a food group, so they are the results the app can reason about."
+    },
+    "sectionProducts": {
+      "fr": "Produits de marque",
+      "scope": "shared",
+      "context": "Section header above Open Food Facts rows: productType 'off_product'. 'de marque' rather than a bare 'Produits' because the distinction a viewer needs is branded-packaged versus generic food, not product versus non-product. The API reserves these a fifth of the result window."
+    },
+    "recipePrefix": {
+      "fr": "Recette : {label}",
+      "scope": "shared",
+      "context": "Recipe row title. Space before the colon — French typography."
+    },
+    "recipeComponentCount": {
+      "fr": "{count} ingrédients",
+      "scope": "shared",
+      "context": "Not pluralised in the source, so a single-component recipe reads \"1 ingrédients\". Defect, recorded verbatim."
+    },
+    "confirmAdd": {
+      "fr": "Ajouter ({count})",
+      "scope": "shared",
+      "context": "Multi-select confirm, shown only when more than one search term was typed."
+    },
+    "cancel": {
+      "fr": "Annuler",
+      "scope": "shared"
+    },
+    "placeholderSingle": {
+      "fr": "Rechercher un aliment…",
+      "scope": "app",
+      "context": "The short wording the native apps put in the field. NOTE, because the previous version of this note is now wrong: the apps DO have multi-term search — they read X-Segment-Count and offer a multi-select when the query is more than one phrase. They keep this wording anyway because `placeholder` is 51 characters against a field that fits about 22, so the phone would truncate away the \"(riz poulet pomme)\" that does the teaching. `multiTermHint` carries that under the field instead. Same field, two wordings, for width — no longer because the interaction differs."
+    }
+  },
+  "ingredientCard": {
+    "drag": {
+      "fr": "Déplacer",
+      "scope": "shared",
+      "context": "Accessibility label on the drag handle."
+    },
+    "changeCooking": {
+      "fr": "Changer la cuisson et l'état de pesée",
+      "scope": "shared",
+      "context": "Accessibility label on the method pill."
+    },
+    "remove": {
+      "fr": "Retirer l'ingrédient",
+      "scope": "shared"
+    },
+    "collapse": {
+      "fr": "Réduire",
+      "scope": "shared"
+    },
+    "report": {
+      "fr": "Signaler",
+      "scope": "shared",
+      "context": "Discreet footer link opening the feedback dialog."
+    },
+    "reportAria": {
+      "fr": "Signaler une imprécision",
+      "scope": "shared"
+    },
+    "cannotEatRaw": {
+      "fr": "Cet aliment ne se consomme pas cru",
+      "scope": "shared",
+      "context": "Tooltip on the disabled \"Cru\" option when canEatRaw is false."
+    },
+    "weighedLabel": {
+      "fr": "Pesé :",
+      "scope": "shared",
+      "context": "Non-breaking space before the colon in the source (Pesé&nbsp;:)."
+    },
+    "weighedGroupAria": {
+      "fr": "Pesé avant ou après cuisson",
+      "scope": "shared"
+    },
+    "weighedInline": {
+      "fr": "(pesé {when} cuisson)",
+      "scope": "shared",
+      "context": "Inside the method pill; {when} is measuredState.before / .after."
+    }
+  },
+  "measuredState": {
+    "$comment": "Whether the quantity is a pre- or post-cooking weight. The most consequential control in the UI — see the build-meal-ingredient vector suite.",
+    "beforeLong": {
+      "fr": "Avant cuisson",
+      "scope": "shared",
+      "context": "Toggle button, paired with 🌿."
+    },
+    "afterLong": {
+      "fr": "Après cuisson",
+      "scope": "shared",
+      "context": "Toggle button, paired with 🍽️."
+    },
+    "before": {
+      "fr": "avant",
+      "scope": "shared",
+      "context": "Short form inside the method pill."
+    },
+    "after": {
+      "fr": "après",
+      "scope": "shared"
+    },
+    "rawShort": {
+      "fr": "cru",
+      "scope": "shared",
+      "context": "Used in \"pesé cru\" on the results row."
+    },
+    "cookedShort": {
+      "fr": "cuit",
+      "scope": "shared"
+    },
+    "weighedSummary": {
+      "fr": "pesé {state}",
+      "scope": "shared",
+      "context": "{state} is rawShort or cookedShort."
+    }
+  },
+  "cookingMethods": {
+    "$comment": "Labels and appliance hints per cooking method. Emoji and colours live in tokens/cooking-palette.json under the same method ids. The API also accepts a generic \"cooked\", which has no picker entry — the client refuses it rather than guessing an appliance.",
+    "raw": {
+      "fr": "Cru",
+      "scope": "shared"
+    },
+    "boiled": {
+      "fr": "Bouilli",
+      "hint": "Eau",
+      "scope": "shared"
+    },
+    "steamed": {
+      "fr": "Vapeur",
+      "hint": "Panier vapeur",
+      "scope": "shared"
+    },
+    "grilled": {
+      "fr": "Grillé",
+      "hint": "Poêle / Barbecue",
+      "scope": "shared"
+    },
+    "roasted": {
+      "fr": "Rôti",
+      "hint": "Four",
+      "scope": "shared"
+    },
+    "fried": {
+      "fr": "Frit",
+      "hint": "Friture",
+      "scope": "shared"
+    },
+    "cookedGeneric": {
+      "fr": "cuit (générique)",
+      "scope": "shared",
+      "context": "Appears only in the feedback form's method list, never as a selectable cooking option."
+    }
+  },
+  "portionScale": {
+    "exactAria": {
+      "fr": "Saisir la quantité exacte",
+      "scope": "shared"
+    },
+    "currentAria": {
+      "fr": "Quantité : {value} {unit}. Toucher pour saisir une valeur exacte.",
+      "scope": "shared"
+    },
+    "decrementAria": {
+      "fr": "Retirer {step} {unit}",
+      "scope": "shared"
+    },
+    "incrementAria": {
+      "fr": "Ajouter {step} {unit}",
+      "scope": "shared"
+    },
+    "shortcutsAria": {
+      "fr": "Raccourcis de portion",
+      "scope": "shared"
+    },
+    "setPortionAria": {
+      "fr": "Définir la portion : {label}",
+      "scope": "shared",
+      "context": "Multiplier shortcut."
+    },
+    "addUnitAria": {
+      "fr": "Ajouter {grams} {unit} ({label})",
+      "scope": "shared",
+      "context": "Increment shortcut from a Knowledge serving unit."
+    },
+    "unitGram": {
+      "fr": "g",
+      "scope": "shared"
+    },
+    "unitMillilitre": {
+      "fr": "mL",
+      "scope": "shared",
+      "context": "Capital L, and preceded by a space in rendered weights (\"270 mL\") unlike grams (\"64g\"). Pinned by the describe-quantity vector suite."
+    }
+  },
+  "portionAnchors": {
+    "$comment": "Named portion sizes on the coarse scale. Pinned by the build-anchors and describe-quantity vector suites, so a port must not reword them — the vectors assert these exact strings.",
+    "quarter": {
+      "fr": "¼",
+      "scope": "shared"
+    },
+    "small": {
+      "fr": "Petite",
+      "scope": "shared"
+    },
+    "one": {
+      "fr": "1 part",
+      "scope": "shared"
+    },
+    "large": {
+      "fr": "Grande",
+      "scope": "shared"
+    },
+    "double": {
+      "fr": "Double",
+      "scope": "shared"
+    },
+    "half": {
+      "fr": "Demi",
+      "scope": "shared",
+      "context": "Shortcut-row multiplier only, not a scale anchor."
+    },
+    "onePart": {
+      "fr": "1 Part",
+      "scope": "shared",
+      "context": "Shortcut-row anchor. Capital P, unlike the scale anchor \"1 part\". Verbatim from the source; both are asserted by vectors."
+    },
+    "approx": {
+      "fr": "≈ {value}",
+      "scope": "shared",
+      "context": "Prefix for an approximate descriptor. U+2248 followed by a space."
+    },
+    "portionUnit": {
+      "fr": "portion",
+      "scope": "shared",
+      "context": "As in \"≈ 1,3 portion\" — never pluralised in the source, even above 2."
+    },
+    "belowOne": {
+      "fr": "< 1{unit}",
+      "scope": "shared",
+      "context": "Sub-unit weights render this way rather than as \"0g\"."
+    }
+  },
+  "nutrients": {
+    "energy": {
+      "fr": "Énergie",
+      "unit": "kcal",
+      "scope": "shared"
+    },
+    "protein": {
+      "fr": "Protéines",
+      "unit": "g",
+      "scope": "shared"
+    },
+    "carbs": {
+      "fr": "Glucides",
+      "unit": "g",
+      "scope": "shared"
+    },
+    "fat": {
+      "fr": "Lipides",
+      "unit": "g",
+      "scope": "shared"
+    },
+    "fiber": {
+      "fr": "Fibres",
+      "unit": "g",
+      "scope": "shared",
+      "context": "Hidden when the total is zero."
+    },
+    "sugars": {
+      "fr": "Sucres",
+      "unit": "g",
+      "scope": "shared"
+    },
+    "proteinAbbr": {
+      "fr": "P",
+      "scope": "shared",
+      "context": "Compact per-ingredient row: \"P: 12,0 g\"."
+    },
+    "fatAbbr": {
+      "fr": "L",
+      "scope": "shared",
+      "context": "Lipides."
+    },
+    "carbsAbbr": {
+      "fr": "G",
+      "scope": "shared",
+      "context": "Glucides. Note G means carbs here, not grams."
+    }
+  },
+  "preview": {
+    "title": {
+      "fr": "Aperçu nutritionnel",
+      "scope": "shared",
+      "context": "Live preview above the submit button."
+    }
+  },
+  "results": {
+    "total": {
+      "fr": "Total du repas",
+      "scope": "shared"
+    },
+    "edit": {
+      "fr": "Modifier le repas",
+      "scope": "shared"
+    },
+    "unavailable": {
+      "fr": "Données indisponibles pour cet aliment.",
+      "scope": "shared",
+      "context": "Shown when available is false. Must NOT be replaced by zeros."
+    },
+    "infoAria": {
+      "fr": "Informations et signalement pour {name}",
+      "scope": "shared"
+    },
+    "rowSummary": {
+      "fr": "{quantity} {unit} · {method} · pesé {state}",
+      "scope": "shared",
+      "context": "Middot U+00B7 with spaces. {method} is the raw API value, untranslated in the source — a defect a port should fix by mapping through cookingMethods."
+    },
+    "source": {
+      "cache": {
+        "fr": "Cache",
+        "scope": "shared"
+      },
+      "ml": {
+        "fr": "ML",
+        "scope": "shared"
+      },
+      "off_direct": {
+        "fr": "OpenFoodFacts",
+        "scope": "shared"
+      },
+      "unavailable": {
+        "fr": "Indisponible",
+        "scope": "shared"
+      }
+    },
+    "save": {
+      "fr": "Enregistrer ce repas",
+      "scope": "app",
+      "context": "Writes the analysed meal to the journal. The sandbox discards its results."
+    }
+  },
+  "apiGaps": {
+    "$comment": "scope=sandbox throughout: a developer-facing panel documenting known upstream gaps. Do not ship it in a product app.",
+    "title": {
+      "fr": "Lacunes API observées (expand)",
+      "scope": "sandbox"
+    },
+    "gap1": {
+      "fr": "typicalState « cooked » n'indique pas la méthode (bouilli, grillé…). Le sandbox ne la devine plus : ces aliments — environ 274 dans Knowledge — sont refusés à l'ajout. Il manque un defaultCookingMethod résolu côté API.",
+      "scope": "sandbox"
+    },
+    "gap2": {
+      "fr": "Portion et état de consommation absents de Knowledge : l'API répond 100 g / cru / pesé cuit par défaut. Ces valeurs viennent du serveur, pas du client — le sandbox n'a plus de table locale.",
+      "scope": "sandbox"
+    },
+    "gap3": {
+      "fr": "Les produits Open Food Facts n'héritent d'aucune métadonnée Knowledge (typical_state, food_group, densité) : source_mappings/off/ est vide, donc ils tombent tous sur les valeurs par défaut ci-dessus.",
+      "scope": "sandbox"
+    },
+    "gap4": {
+      "fr": "densityGMl est renvoyé par l'API mais jamais lu : une quantité en ml est envoyée sans conversion en grammes.",
+      "scope": "sandbox"
+    }
+  },
+  "errors": {
+    "prefix": {
+      "fr": "Erreur : {message}",
+      "scope": "shared"
+    },
+    "retry": {
+      "fr": "Réessayer",
+      "scope": "shared"
+    }
+  },
+  "feedback": {
+    "title": {
+      "fr": "Signaler une imprécision",
+      "scope": "shared"
+    },
+    "intro": {
+      "fr": "Choisissez une catégorie, puis l'erreur concernée.",
+      "scope": "shared"
+    },
+    "referenceWeight": {
+      "fr": "Poids de référence",
+      "scope": "shared",
+      "context": "Current-value hint shown beside the form."
+    },
+    "displayUnit": {
+      "fr": "Unité d'affichage",
+      "scope": "shared"
+    },
+    "units": {
+      "fr": "Unités",
+      "scope": "shared"
+    },
+    "comment": {
+      "fr": "Commentaire (optionnel)",
+      "scope": "shared"
+    },
+    "add": {
+      "fr": "Ajouter",
+      "scope": "shared",
+      "context": "Adds one correction to the pending list."
+    },
+    "removeCorrection": {
+      "fr": "Retirer cette correction",
+      "scope": "shared"
+    },
+    "submit": {
+      "fr": "Envoyer le signalement",
+      "scope": "shared"
+    },
+    "submitting": {
+      "fr": "Envoi…",
+      "scope": "shared"
+    },
+    "success": {
+      "fr": "Merci, votre signalement a été transmis à l'équipe.",
+      "scope": "shared"
+    },
+    "failure": {
+      "fr": "Envoi impossible pour le moment. Réessayez plus tard.",
+      "scope": "shared"
+    },
+    "close": {
+      "fr": "Fermer",
+      "scope": "shared"
+    },
+    "unitAria": {
+      "fr": "unité",
+      "scope": "shared"
+    },
+    "catalog": {
+      "$comment": "The guided-correction taxonomy. CODES ARE NOT COPY: every `code` must match the API allowlist (FeedbackController ALLOWED_CATEGORIES / ALLOWED_CODES) or the submission is rejected. Order is UI order. Only `fr` and `placeholder` are translatable.",
+      "categories": [
+        {
+          "code": "nutrition",
+          "fr": "Valeurs nutritionnelles",
+          "errors": [
+            {
+              "code": "energy",
+              "fr": "Énergie",
+              "input": "number",
+              "suffix": "kcal"
+            },
+            {
+              "code": "protein",
+              "fr": "Protéines",
+              "input": "number",
+              "suffix": "g"
+            },
+            {
+              "code": "fat",
+              "fr": "Lipides",
+              "input": "number",
+              "suffix": "g"
+            },
+            {
+              "code": "carbs",
+              "fr": "Glucides",
+              "input": "number",
+              "suffix": "g"
+            },
+            {
+              "code": "fiber",
+              "fr": "Fibres",
+              "input": "number",
+              "suffix": "g"
+            },
+            {
+              "code": "other_nutrient",
+              "fr": "Autre nutriment",
+              "input": "text",
+              "placeholder": "ex : vitamine C ~ 12 mg"
+            }
+          ]
+        },
+        {
+          "code": "identity",
+          "fr": "Identité",
+          "errors": [
+            {
+              "code": "name_fr",
+              "fr": "Nom (français)",
+              "input": "text",
+              "placeholder": "nom correct en français"
+            },
+            {
+              "code": "name_en",
+              "fr": "Nom (anglais)",
+              "input": "text",
+              "placeholder": "correct English name"
+            },
+            {
+              "code": "food_group",
+              "fr": "Groupe alimentaire",
+              "input": "select",
+              "options": "foodGroups"
+            },
+            {
+              "code": "aliases",
+              "fr": "Noms alternatifs / synonymes",
+              "input": "text",
+              "placeholder": "ex : poivre, poivre moulu"
+            },
+            {
+              "code": "wrong_ingredient",
+              "fr": "Mauvais ingrédient reconnu",
+              "input": "text",
+              "placeholder": "le bon ingrédient serait…"
+            }
+          ]
+        },
+        {
+          "code": "measures",
+          "fr": "Mesures & portions",
+          "errors": [
+            {
+              "code": "reference_weight",
+              "fr": "Poids de référence",
+              "input": "number-unit",
+              "units": [
+                "g",
+                "ml"
+              ],
+              "hint": "reference_weight"
+            },
+            {
+              "code": "serving_unit",
+              "fr": "Unité de mesure manquante (ex : pincée)",
+              "input": "select",
+              "options": "servingUnits",
+              "hint": "serving_units"
+            },
+            {
+              "code": "display_unit",
+              "fr": "Unité d'affichage",
+              "input": "select",
+              "options": "displayUnits",
+              "hint": "display_unit"
+            },
+            {
+              "code": "serving_mode",
+              "fr": "Mode de portion",
+              "input": "select",
+              "options": "servingModes"
+            },
+            {
+              "code": "density",
+              "fr": "Densité",
+              "input": "number",
+              "suffix": "g/ml"
+            }
+          ]
+        },
+        {
+          "code": "cooking",
+          "fr": "Cuisson",
+          "errors": [
+            {
+              "code": "yield",
+              "fr": "Rendement après cuisson",
+              "input": "number",
+              "suffix": "%"
+            },
+            {
+              "code": "cooking_method",
+              "fr": "Méthode de cuisson manquante",
+              "input": "select",
+              "options": "cookingMethods",
+              "hint": "cooking_method"
+            },
+            {
+              "code": "raw_cooked",
+              "fr": "Se mange cru / cuit",
+              "input": "select",
+              "options": "rawCooked",
+              "hint": "raw_cooked"
+            }
+          ]
+        },
+        {
+          "code": "other",
+          "fr": "Autre / nouvelle information",
+          "errors": [
+            {
+              "code": "free",
+              "fr": "Autre remarque",
+              "input": "text",
+              "placeholder": "décrivez le problème ou la nouvelle information"
+            }
+          ]
+        }
+      ],
+      "optionLists": {
+        "servingUnits": {
+          "$comment": "Mirrors pocket-nutrition-knowledge/serving_unit_types.yaml. A closed vocabulary — do not extend it client-side.",
+          "options": [
+            {
+              "code": "pinch",
+              "fr": "pincée"
+            },
+            {
+              "code": "teaspoon",
+              "fr": "cuillère à café"
+            },
+            {
+              "code": "tablespoon",
+              "fr": "cuillère à soupe"
+            },
+            {
+              "code": "cup",
+              "fr": "tasse"
+            },
+            {
+              "code": "handful",
+              "fr": "poignée"
+            },
+            {
+              "code": "small_handful",
+              "fr": "petite poignée"
+            },
+            {
+              "code": "glass",
+              "fr": "verre"
+            }
+          ]
+        },
+        "foodGroups": {
+          "$comment": "Mirrors the food_group enum in ingredient.schema.json.",
+          "options": [
+            {
+              "code": "meat",
+              "fr": "viande"
+            },
+            {
+              "code": "fish",
+              "fr": "poisson"
+            },
+            {
+              "code": "shellfish",
+              "fr": "fruits de mer"
+            },
+            {
+              "code": "vegetable",
+              "fr": "légume"
+            },
+            {
+              "code": "cereal",
+              "fr": "céréale"
+            },
+            {
+              "code": "dairy",
+              "fr": "produit laitier"
+            },
+            {
+              "code": "beverage",
+              "fr": "boisson"
+            },
+            {
+              "code": "egg",
+              "fr": "œuf"
+            },
+            {
+              "code": "fat",
+              "fr": "matière grasse"
+            },
+            {
+              "code": "fruit",
+              "fr": "fruit"
+            },
+            {
+              "code": "legume",
+              "fr": "légumineuse"
+            },
+            {
+              "code": "nut_seed",
+              "fr": "fruit à coque / graine"
+            },
+            {
+              "code": "spice_herb",
+              "fr": "épice / herbe"
+            },
+            {
+              "code": "sweetener",
+              "fr": "édulcorant"
+            },
+            {
+              "code": "baked_good",
+              "fr": "produit de boulangerie"
+            },
+            {
+              "code": "sauce",
+              "fr": "sauce"
+            },
+            {
+              "code": "processed_meat",
+              "fr": "charcuterie"
+            },
+            {
+              "code": "prepared_dish",
+              "fr": "plat préparé"
+            },
+            {
+              "code": "seaweed",
+              "fr": "algue"
+            },
+            {
+              "code": "alcohol",
+              "fr": "alcool"
+            },
+            {
+              "code": "other",
+              "fr": "autre"
+            }
+          ]
+        },
+        "cookingMethods": {
+          "$comment": "Lowercase forms, used in the feedback form only. The picker uses the capitalised forms under the top-level `cookingMethods`.",
+          "options": [
+            {
+              "code": "raw",
+              "fr": "cru"
+            },
+            {
+              "code": "boiled",
+              "fr": "bouilli"
+            },
+            {
+              "code": "steamed",
+              "fr": "vapeur"
+            },
+            {
+              "code": "grilled",
+              "fr": "grillé"
+            },
+            {
+              "code": "roasted",
+              "fr": "rôti"
+            },
+            {
+              "code": "fried",
+              "fr": "frit"
+            },
+            {
+              "code": "cooked",
+              "fr": "cuit (générique)"
+            }
+          ]
+        },
+        "servingModes": {
+          "options": [
+            {
+              "code": "item",
+              "fr": "à l'unité"
+            },
+            {
+              "code": "weight",
+              "fr": "au poids"
+            },
+            {
+              "code": "volume",
+              "fr": "au volume"
+            },
+            {
+              "code": "measure",
+              "fr": "à la mesure"
+            }
+          ]
+        },
+        "displayUnits": {
+          "options": [
+            {
+              "code": "g",
+              "fr": "grammes (g)"
+            },
+            {
+              "code": "ml",
+              "fr": "millilitres (ml)"
+            }
+          ]
+        },
+        "rawCooked": {
+          "options": [
+            {
+              "code": "raw",
+              "fr": "cru"
+            },
+            {
+              "code": "cooked",
+              "fr": "cuit"
+            },
+            {
+              "code": "both",
+              "fr": "les deux"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

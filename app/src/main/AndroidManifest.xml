@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  INTERNET and CAMERA, each added in the same change as the code that needs it — as this comment's
+  previous revision required, and the same rule this revision follows.
+
+  INTERNET justification: the app calls GET /ingredients/search, GET /ingredients/barcode/{ean13} and
+  POST /nutrition on https://api.pocketnutrition.org. Nothing else leaves the device; the food diary
+  is a local JSON file and is never uploaded.
+
+  CAMERA justification: live barcode scanning (CameraX + on-device ML Kit) so a product's EAN-13 can
+  be looked up without typing it. No photo or video is ever stored, uploaded, or requested from the
+  user — only the decoded digits leave BarcodeScannerScreen, going straight into the same
+  lookupBarcode() call a typed search would make.
+
+  Not requested, and each absence is deliberate: ACCESS_NETWORK_STATE (a failed request already tells
+  us we are offline, and the copy for it exists), and any storage permission (the journal lives in the
+  app's own filesDir; the camera preview is never persisted to disk).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Declared but not required: scanning is one input method among several (typed search still
+         works), so a camera-less device should still see this app in its Play Store listing rather
+         than being filtered out. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <!--
+      Backup is enabled but the journal is excluded, and that combination is deliberate.
+
+      allowBackup="true" with no rules uploaded journal.json — which lives in filesDir — to the
+      user's Google Drive, while JournalScreen rendered "Vos repas sont enregistrés uniquement sur
+      cet appareil." (Strings.JOURNAL_PRIVACY). The sentence was false on Android and true on iOS.
+      The fix belongs in the manifest rather than in the copy: on-device-only is the promise the app
+      should be keeping, and it is also what makes the Play Data safety declaration "no data
+      collected" accurate.
+
+      Both attributes are required. dataExtractionRules covers Android 12+ (cloud backup and
+      device-to-device transfer separately); fullBackupContent covers 11 and below, which minSdk 26
+      still includes. Declaring only the newer one silently leaves older devices backing the file up.
+    -->
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PocketNutrition">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.PocketNutrition">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

@@ -1,0 +1,61 @@
+{
+  "suite": "yield-factor",
+  "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the pocket-nutrition-ml router.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "generic-cooked-fallback",
+      "why": "The rice bug. Knowledge aggregates most yields under the generic \"cooked\" state key, so a request for \"boiled\" must fall back to it instead of returning 1.",
+      "input": {
+        "yieldFactors": {
+          "cooked": 2.2286
+        },
+        "method": "boiled"
+      },
+      "expected": 2.2286
+    },
+    {
+      "id": "method-specific-wins",
+      "why": "A method-specific override takes precedence over the generic key.",
+      "input": {
+        "yieldFactors": {
+          "boiled": 0.9,
+          "cooked": 2.2
+        },
+        "method": "boiled"
+      },
+      "expected": 0.9
+    },
+    {
+      "id": "raw-is-always-one",
+      "why": "Raw means no conversion, even with a \"cooked\" key present. This is checked before any lookup, so a port must not reorder the branches.",
+      "input": {
+        "yieldFactors": {
+          "cooked": 2.2286
+        },
+        "method": "raw"
+      },
+      "expected": 1
+    },
+    {
+      "id": "no-data-returns-one",
+      "why": "No invented conversion when Knowledge has no yield at all.",
+      "input": {
+        "yieldFactors": {},
+        "method": "boiled"
+      },
+      "expected": 1
+    },
+    {
+      "id": "cooked-resolves-directly",
+      "why": "\"cooked\" is a real method value the API accepts, not only a fallback key.",
+      "input": {
+        "yieldFactors": {
+          "cooked": 2.2286
+        },
+        "method": "cooked"
+      },
+      "expected": 2.2286
+    }
+  ]
+}

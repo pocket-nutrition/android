@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MPL-2.0
+#
+# Single place every version is declared. A version catalogue rather than inline strings so a bump is
+# one line and two modules can never disagree about a dependency.
+
+[versions]
+agp = "9.3.1"
+kotlin = "2.4.10"
+# Kotlin 2.x moved the Compose compiler into a Kotlin plugin, so it tracks the Kotlin version and
+# must not be bumped independently of it.
+composeBom = "2026.06.01"
+kotlinxSerialization = "1.11.0"
+androidxCore = "1.19.0"
+androidxLifecycle = "2.11.0"
+androidxActivity = "1.13.0"
+junit = "4.13.2"
+# Coil 3 for the Open Food Facts product photos in the suggestion list. Chosen over Glide because it
+# is Compose-native and Kotlin-only — a single AsyncImage composable rather than a view-based loader
+# wrapped in an interop layer — and it is the smallest of the three by a wide margin, which matters
+# for an app whose only other runtime dependencies are Compose and kotlinx.serialization.
+coil = "3.4.0"
+# Live barcode scanning: CameraX supplies the preview + frame pipeline, ML Kit the on-device decoder.
+# Chosen over the Play-Services "Google Code Scanner" (com.google.android.gms:play-services-code-scanner),
+# which needs neither a CAMERA permission nor a manifest entry because it owns its own full-screen
+# scanning UI in a separate activity — but for exactly that reason it does not let this app show its
+# own pre-permission explainer or drive a "permanently denied -> open Settings" flow, which the
+# feature explicitly requires this app to control.
+cameraX = "1.4.2"
+mlkitBarcodeScanning = "17.3.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivity" }
+
+# The BOM aligns every Compose artefact, so the entries below carry no version of their own.
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+
+# Decodes the vendored behavioural corpus in unit tests, and later the API responses.
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Product photos in the search list. coil-network-okhttp supplies the HTTP fetcher; without it Coil
+# resolves local URIs only and every remote image silently fails.
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcodeScanning" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

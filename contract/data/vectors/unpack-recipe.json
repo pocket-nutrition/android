@@ -1,0 +1,166 @@
+{
+  "suite": "unpack-recipe",
+  "description": "Flattens a recipe suggestion into one AddItem per component, carrying the recipe's cooking method and per-person weight as explicit overrides. Order is preserved. A recipe with no components gives an empty list, never an error.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "expands-components-with-overrides",
+      "why": "Each component becomes an AddItem whose cookingMethod and quantityG come from the recipe, not from the ingredient's own heuristics — that is what makes a recipe a recipe.",
+      "input": {
+        "recipe": {
+          "ingredientId": "recipe:raclette",
+          "label": "raclette traditionnelle",
+          "lang": "fr",
+          "productType": "recipe",
+          "servingG": 80,
+          "densityGMl": null,
+          "canEatRaw": false,
+          "canEatCooked": true,
+          "typicalState": "raw",
+          "portionMeasuredState": "raw",
+          "nutrition": null,
+          "servingUnits": [],
+          "displayUnit": "g",
+          "yieldFactors": {
+            "boiled": 0.9
+          },
+          "servingMode": "weight",
+          "unitLabelFr": null,
+          "unitLabelEn": null,
+          "recipeComponents": [
+            {
+              "weightG": 200,
+              "cookingMethod": "boiled",
+              "ingredient": {
+                "ingredientId": "potato",
+                "label": "pomme de terre",
+                "lang": "fr",
+                "productType": "ingredient",
+                "servingG": 80,
+                "densityGMl": null,
+                "canEatRaw": false,
+                "canEatCooked": true,
+                "typicalState": "raw",
+                "portionMeasuredState": "raw",
+                "nutrition": null,
+                "servingUnits": [],
+                "displayUnit": "g",
+                "yieldFactors": {
+                  "boiled": 0.9
+                },
+                "servingMode": "weight",
+                "unitLabelFr": null,
+                "unitLabelEn": null
+              }
+            },
+            {
+              "weightG": 100,
+              "cookingMethod": "grilled",
+              "ingredient": {
+                "ingredientId": "raclette_cheese",
+                "label": "raclette",
+                "lang": "fr",
+                "productType": "ingredient",
+                "servingG": 80,
+                "densityGMl": null,
+                "canEatRaw": false,
+                "canEatCooked": true,
+                "typicalState": "raw",
+                "portionMeasuredState": "raw",
+                "nutrition": null,
+                "servingUnits": [],
+                "displayUnit": "g",
+                "yieldFactors": {
+                  "boiled": 0.9
+                },
+                "servingMode": "weight",
+                "unitLabelFr": null,
+                "unitLabelEn": null
+              }
+            }
+          ]
+        }
+      },
+      "expected": [
+        {
+          "suggestion": {
+            "ingredientId": "potato",
+            "label": "pomme de terre",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          },
+          "cookingMethod": "boiled",
+          "quantityG": 200
+        },
+        {
+          "suggestion": {
+            "ingredientId": "raclette_cheese",
+            "label": "raclette",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          },
+          "cookingMethod": "grilled",
+          "quantityG": 100
+        }
+      ]
+    },
+    {
+      "id": "empty-when-there-are-no-components",
+      "why": "recipeComponents is absent on a plain suggestion and may be null on a malformed recipe. Both must give an empty list rather than throwing — this data comes from the server.",
+      "input": {
+        "recipe": {
+          "ingredientId": "potato",
+          "label": "pomme de terre",
+          "lang": "fr",
+          "productType": "recipe",
+          "servingG": 80,
+          "densityGMl": null,
+          "canEatRaw": false,
+          "canEatCooked": true,
+          "typicalState": "raw",
+          "portionMeasuredState": "raw",
+          "nutrition": null,
+          "servingUnits": [],
+          "displayUnit": "g",
+          "yieldFactors": {
+            "boiled": 0.9
+          },
+          "servingMode": "weight",
+          "unitLabelFr": null,
+          "unitLabelEn": null
+        }
+      },
+      "expected": []
+    }
+  ]
+}

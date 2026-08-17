@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  Backup rules for Android 12+ (android:dataExtractionRules).
+
+  journal.json is the food diary. It lives in filesDir and must never leave the device, because
+  JournalScreen tells the user exactly that: "Vos repas sont enregistrés uniquement sur cet appareil."
+
+  Both destinations are declared, and the duplication is required rather than accidental: <cloud-backup>
+  governs Google Drive, <device-transfer> governs a direct phone-to-phone migration, and excluding one
+  does not exclude the other. Device transfer never leaves the user's own hands, so it is arguably
+  harmless — but the on-screen promise says "cet appareil", singular, and a copy on the new phone is a
+  copy on another device. Keeping both exclusions makes the sentence true without needing a footnote.
+
+  Android 11 and below read res/xml/backup_rules.xml instead; minSdk is 26, so that file is still live.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="journal.json" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="journal.json" />
+    </device-transfer>
+</data-extraction-rules>

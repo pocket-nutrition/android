@@ -1,0 +1,95 @@
+{
+  "suite": "serving-unit-emoji",
+  "description": "Cosmetic icon per serving-unit type. The vocabulary is closed and lives in pocket-nutrition-knowledge/serving_unit_types.yaml; this maps seven of its ten entries. shot, bowl and scoop have NO icon on purpose — no glyph reads unambiguously as any of them, and a wrong icon is worse than none — so `expected` is null for those, never an empty string. teaspoon and tablespoon deliberately share one glyph. An unknown unit outside the vocabulary also has none, so a client never needs a placeholder.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "pinch",
+      "why": "The smallest unit in the vocabulary. Reachable in shortcut-profile only to be dropped as sub-gram, so its icon is never rendered there and would otherwise go unpinned.",
+      "input": {
+        "unit": "pinch"
+      },
+      "expected": "🤏"
+    },
+    {
+      "id": "teaspoon-and-tablespoon-share-a-glyph",
+      "why": "Both spoons are 🥄. A port that keys one and forgets the other still passes shortcut-profile, which only ever asserts one of them per case.",
+      "input": {
+        "unit": "teaspoon"
+      },
+      "expected": "🥄"
+    },
+    {
+      "id": "tablespoon",
+      "why": "The other half of the shared glyph, asserted separately so neither can be dropped.",
+      "input": {
+        "unit": "tablespoon"
+      },
+      "expected": "🥄"
+    },
+    {
+      "id": "cup",
+      "why": "The one unit whose icon differs from the spoons in the shortcut-profile cases, which is why that suite catches a swapped pair but not a missing third entry.",
+      "input": {
+        "unit": "cup"
+      },
+      "expected": "🥣"
+    },
+    {
+      "id": "handful",
+      "why": "Unreachable from any shortcut-profile case, so entirely unpinned before this suite.",
+      "input": {
+        "unit": "handful"
+      },
+      "expected": "✊"
+    },
+    {
+      "id": "small-handful",
+      "why": "The underscored key. A port that camel-cases vocabulary keys breaks here and nowhere else.",
+      "input": {
+        "unit": "small_handful"
+      },
+      "expected": "🤲"
+    },
+    {
+      "id": "glass",
+      "why": "The volumetric unit a drink resolves to; unpinned before this suite.",
+      "input": {
+        "unit": "glass"
+      },
+      "expected": "🥛"
+    },
+    {
+      "id": "shot-has-no-icon",
+      "why": "In the vocabulary, deliberately unmapped. Distinguishes \"no glyph chosen\" from \"unit not known\", which a client must treat identically.",
+      "input": {
+        "unit": "shot"
+      },
+      "expected": null
+    },
+    {
+      "id": "bowl-has-no-icon",
+      "why": "Also in the vocabulary and also unmapped. 🥣 is already the cup, and reusing it would make two different units render the same.",
+      "input": {
+        "unit": "bowl"
+      },
+      "expected": null
+    },
+    {
+      "id": "scoop-has-no-icon",
+      "why": "The unit shortcut-profile uses for its unknown-unit case. It is in the vocabulary, so that case pins the unmapped path rather than the unknown-unit path — a distinction worth making explicit here.",
+      "input": {
+        "unit": "scoop"
+      },
+      "expected": null
+    },
+    {
+      "id": "a-unit-outside-the-vocabulary-has-no-icon",
+      "why": "Knowledge could add a unit before this map does. The result is a missing icon, never a placeholder and never an error.",
+      "input": {
+        "unit": "thimble"
+      },
+      "expected": null
+    }
+  ]
+}

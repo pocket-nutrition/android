@@ -1,0 +1,55 @@
+{
+  "suite": "french-number",
+  "description": "French decimal comma; integers carry no decimal part. Do NOT implement this with a locale-aware formatter — those add thousands separators and vary by platform and OS version. The rule is literally \"stringify, then replace . with ,\".",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "one-decimal",
+      "why": "The common case, and the one that shows the separator is a comma rather than the dot a default toString would produce.",
+      "input": {
+        "value": 1.1
+      },
+      "expected": "1,1"
+    },
+    {
+      "id": "integer-has-no-decimal",
+      "why": "An integer renders \"2\", not \"2,0\". A fixed-one-decimal formatter fails here.",
+      "input": {
+        "value": 2
+      },
+      "expected": "2"
+    },
+    {
+      "id": "below-one-keeps-leading-zero",
+      "why": "Renders \"0,5\" and not \",5\". Some locale formatters drop the leading zero for values below one, which is why this is pinned rather than assumed.",
+      "input": {
+        "value": 0.5
+      },
+      "expected": "0,5"
+    },
+    {
+      "id": "rounding-tie-result",
+      "why": "The value produced by the 80 g / 64 g portion tie, so the two suites join up here.",
+      "input": {
+        "value": 1.3
+      },
+      "expected": "1,3"
+    },
+    {
+      "id": "two-digit-integer",
+      "why": "No thousands separator and no space; a locale formatter may insert one.",
+      "input": {
+        "value": 10
+      },
+      "expected": "10"
+    },
+    {
+      "id": "zero",
+      "why": "Zero counts as an integer, so it renders \"0\" and not \"0,0\". Reachable whenever an ingredient is scaled all the way down.",
+      "input": {
+        "value": 0
+      },
+      "expected": "0"
+    }
+  ]
+}

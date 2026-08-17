@@ -1,0 +1,972 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pocket Nutrition API",
+    "description": "Predicts cooked nutritional profiles from raw ingredients and cooking methods. Results are served from an Elasticsearch cache on repeat queries; cache misses are forwarded to the pocket-nutrition-ml prediction service.",
+    "version": "1.3.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Nutrition",
+      "description": "Nutritional profile prediction"
+    },
+    {
+      "name": "Ingredients",
+      "description": "Ingredient search and barcode lookup"
+    },
+    {
+      "name": "Feedback",
+      "description": "Anonymous user feedback on ingredient data quality"
+    }
+  ],
+  "paths": {
+    "/nutrition": {
+      "post": {
+        "tags": [
+          "Nutrition"
+        ],
+        "summary": "Predict nutritional profiles for a list of food items",
+        "operationId": "getNutrition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/FoodItemRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Nutritional profiles computed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NutritionalProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Empty list or unsupported unit",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NutritionalProfileResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Submit structured corrections and/or a comment about an ingredient",
+        "operationId": "submit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Feedback received",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No corrections and no comment, unknown category/code, or oversized input",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingredients/search": {
+      "get": {
+        "tags": [
+          "Ingredients"
+        ],
+        "summary": "Search ingredients as you type",
+        "description": "Returns matching suggestions. When quantity + cooking_method are provided, each suggestion also includes its nutritional profile (cache or ML prediction).",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Search query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Preferred language code (fr, en)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max results to return (1–50, default 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          },
+          {
+            "name": "quantity",
+            "in": "query",
+            "description": "Quantity for nutritional enrichment — requires cooking_method",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "unit",
+            "in": "query",
+            "description": "Unit of quantity ('g' or 'ml', default 'g')",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "g"
+            }
+          },
+          {
+            "name": "cooking_method",
+            "in": "query",
+            "description": "Cooking method (required when quantity is set)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "measured_state",
+            "in": "query",
+            "description": "Whether quantity is before or after cooking",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "raw"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching ingredient suggestions",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngredientSuggestionWithNutrition"
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-Segment-Count": {
+                "description": "Number of distinct food terms the server segmented the query into. Clients MUST default to 1 when the header is absent. A value greater than 1 puts the result list into multi-select mode.",
+                "required": false,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Blank query",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngredientSuggestionWithNutrition"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingredients/barcode/{ean13}": {
+      "get": {
+        "tags": [
+          "Ingredients"
+        ],
+        "summary": "Look up a product by EAN-13 barcode",
+        "operationId": "barcode",
+        "parameters": [
+          {
+            "name": "ean13",
+            "in": "path",
+            "description": "EAN-13 barcode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nutritional profile (per 100 g) for the scanned product",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientSuggestionWithNutrition"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Barcode not found in OpenFoodFacts catalogue",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientSuggestionWithNutrition"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness probe",
+        "description": "Returns 200 with {\"status\":\"ok\"} when the service is up. Used by the mobile apps to validate a user-supplied server address before saving it.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FoodItemRequest": {
+        "type": "object",
+        "description": "A food item to include in the nutritional prediction",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ingredient name (free text); optional when ingredientId is provided",
+            "example": "chicken breast"
+          },
+          "quantity": {
+            "type": "number",
+            "format": "double",
+            "description": "Measured quantity",
+            "example": 150.0
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measure",
+            "enum": [
+              "g",
+              "ml",
+              "item"
+            ],
+            "example": "g",
+            "x-extensible-enum": [
+              "g",
+              "ml",
+              "item"
+            ]
+          },
+          "cookingMethod": {
+            "type": "string",
+            "description": "Cooking method applied to the ingredient",
+            "enum": [
+              "raw",
+              "boiled",
+              "steamed",
+              "grilled",
+              "roasted",
+              "fried",
+              "cooked"
+            ],
+            "example": "grilled",
+            "x-extensible-enum": [
+              "raw",
+              "boiled",
+              "steamed",
+              "grilled",
+              "roasted",
+              "fried",
+              "cooked"
+            ]
+          },
+          "measuredState": {
+            "type": "string",
+            "description": "Whether the quantity was measured before or after cooking",
+            "enum": [
+              "raw",
+              "cooked"
+            ],
+            "example": "raw",
+            "x-extensible-enum": [
+              "raw",
+              "cooked"
+            ]
+          },
+          "ingredientId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pre-resolved canonical ingredient slug from /ingredients/search; bypasses name resolution when provided",
+            "example": "poulet_filet"
+          }
+        },
+        "required": [
+          "quantity",
+          "unit",
+          "cookingMethod",
+          "measuredState"
+        ]
+      },
+      "NutritionalProfileResponse": {
+        "type": "object",
+        "description": "Predicted nutritional profile for one food item (values per portion)",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "format": "double",
+            "description": "Measured quantity"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of measure",
+            "enum": [
+              "g"
+            ]
+          },
+          "cookingMethod": {
+            "type": "string"
+          },
+          "measuredState": {
+            "type": "string",
+            "description": "Whether the quantity was measured before or after cooking",
+            "enum": [
+              "raw",
+              "cooked"
+            ]
+          },
+          "energyKcal": {
+            "type": "number",
+            "format": "double",
+            "description": "Energy (kcal)"
+          },
+          "proteinG": {
+            "type": "number",
+            "format": "double",
+            "description": "Protein (g)"
+          },
+          "fatG": {
+            "type": "number",
+            "format": "double",
+            "description": "Total fat (g)"
+          },
+          "carbohydratesG": {
+            "type": "number",
+            "format": "double",
+            "description": "Carbohydrates (g)"
+          },
+          "fiberG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Dietary fibre (g)"
+          },
+          "waterG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Water (g)"
+          },
+          "sugarsG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Sugars (g)"
+          },
+          "calciumMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Calcium (mg)"
+          },
+          "ironMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Iron (mg)"
+          },
+          "magnesiumMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Magnesium (mg)"
+          },
+          "sodiumMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Sodium (mg)"
+          },
+          "vitaminCMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Vitamin C (mg)"
+          },
+          "saturatedFatG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Saturated fat (g)"
+          },
+          "monounsaturatedFatG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Monounsaturated fat (g)"
+          },
+          "polyunsaturatedFatG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Polyunsaturated fat (g)"
+          },
+          "cholesterolMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Cholesterol (mg)"
+          },
+          "potassiumMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Potassium (mg)"
+          },
+          "phosphorusMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Phosphorus (mg)"
+          },
+          "zincMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Zinc (mg)"
+          },
+          "vitaminAUg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Vitamin A (µg)"
+          },
+          "vitaminDUg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Vitamin D (µg)"
+          },
+          "vitaminB6Mg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Vitamin B6 (mg)"
+          },
+          "vitaminB12Ug": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Vitamin B12 (µg)"
+          },
+          "niacinMg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Niacin / Vitamin B3 (mg)"
+          },
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "description": "Prediction confidence score (0.0–1.0)",
+            "example": 0.87
+          },
+          "source": {
+            "type": "string",
+            "description": "Origin of this result",
+            "enum": [
+              "cache",
+              "ml",
+              "off_direct",
+              "unavailable"
+            ],
+            "x-extensible-enum": [
+              "cache",
+              "ml",
+              "off_direct",
+              "unavailable"
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "description": "False when no nutritional data could be found for this item"
+          }
+        },
+        "required": [
+          "name",
+          "quantity",
+          "unit",
+          "cookingMethod",
+          "measuredState",
+          "energyKcal",
+          "proteinG",
+          "fatG",
+          "carbohydratesG",
+          "confidence",
+          "source",
+          "available"
+        ]
+      },
+      "FeedbackCorrection": {
+        "type": "object",
+        "description": "A single structured correction: which aspect is wrong and the proposed value",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Category code",
+            "example": "measures"
+          },
+          "code": {
+            "type": "string",
+            "description": "Specific error code within the category",
+            "example": "reference_weight"
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Proposed correct value",
+            "example": "5"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unit for the value when relevant (e.g. g, ml)",
+            "example": "g"
+          }
+        },
+        "required": [
+          "category",
+          "code"
+        ]
+      },
+      "FeedbackRequest": {
+        "type": "object",
+        "description": "Anonymous report: structured corrections and/or a free-text comment about an ingredient",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The food name as shown to the user",
+            "example": "poivre noir"
+          },
+          "corrections": {
+            "type": "array",
+            "description": "Structured corrections (may be empty when a comment is provided)",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackCorrection"
+            }
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional free-text comment / new information"
+          },
+          "cookingMethod": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Cooking method shown for the item"
+          },
+          "measuredState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Whether the weight was measured raw or cooked"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Origin of the result shown to the user (ml/cache/off_direct/…)"
+          }
+        },
+        "required": [
+          "name",
+          "corrections"
+        ]
+      },
+      "IngredientSuggestionWithNutrition": {
+        "type": "object",
+        "description": "Ingredient search result, optionally enriched with nutritional values",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "description": "Stable ASCII slug identifier",
+            "example": "poulet_filet"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable label in the matched language",
+            "example": "Poulet, filet"
+          },
+          "lang": {
+            "type": "string",
+            "description": "BCP-47 language code of the label (fr, en) or 'und' if undetermined",
+            "example": "fr"
+          },
+          "servingG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Typical serving size in grams (100 g default)",
+            "example": 100.0
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/NutritionalProfileResponse"
+          },
+          "servingUnits": {
+            "type": "array",
+            "description": "Available culinary units with gram equivalents; empty when density is unknown",
+            "items": {
+              "$ref": "#/components/schemas/ServingUnit"
+            }
+          },
+          "displayUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Preferred display unit in the UI: 'g' or 'ml'; null means grams"
+          },
+          "typicalState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Typical eating state from the knowledge base. Knowledge stores seven values: 'raw', 'processed', 'cooked', 'boiled', 'steamed', 'roasted', 'fried'. Defaults to 'raw' when the knowledge base has no value (every Open Food Facts product), so a client never has to invent an eating state."
+          },
+          "portionMeasuredState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Whether the servingG portion is measured before cooking ('raw') or after ('cooked'). Decides whether the yield factor applies to servingG, so it changes the weight a client shows. Defaults to 'cooked' when the knowledge base has no value."
+          },
+          "canEatRaw": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this ingredient can be eaten raw; null when unknown"
+          },
+          "canEatCooked": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this ingredient can be cooked; null when unknown"
+          },
+          "yieldFactors": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            },
+            "description": "Per-method yield factor (cooked_weight / raw_weight) from the knowledge base; null when unknown"
+          },
+          "productType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source type: 'ingredient' for knowledge-base items, 'off_product' for Open Food Facts branded products; null for legacy clients"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Product front image URL from Open Food Facts; null for canonical ingredients or when unavailable"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Brand that sells this Open Food Facts product, for telling otherwise identical rows apart: the catalogue holds dozens of products whose label is the bare food name, so without this a client renders several rows reading only 'Poulet'. Null for canonical ingredients and recipes. Never folded into `label` — the client owns that typography and deduplicates on the label alone.",
+            "example": "Le Gaulois"
+          },
+          "foodGroup": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Knowledge-base food group, a 21-value closed vocabulary (see pocket-nutrition-knowledge/schemas/ingredient.schema.json). Lets a client show a category icon for a curated ingredient, which has no photo. Always 'other' for OFF products and recipes, so it distinguishes curated entries from each other, not from products — use `productType` for that.",
+            "example": "vegetable"
+          },
+          "servingMode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Natural measurement mode: 'item' = countable whole units, 'weight' = grams, 'volume' = mL, 'measure' = culinary units; null = weight by default"
+          },
+          "unitLabelFr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "French display label for one whole unit when serving_mode is 'item' (e.g. 'oeuf')"
+          },
+          "unitLabelEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipeComponents": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Recipe components with per-person default weights; only present when productType is 'recipe'",
+            "items": {
+              "$ref": "#/components/schemas/RecipeComponentResponse"
+            }
+          }
+        },
+        "required": [
+          "ingredientId",
+          "label",
+          "lang",
+          "servingUnits"
+        ]
+      },
+      "RecipeComponentResponse": {
+        "type": "object",
+        "description": "One ingredient of a generic recipe, with its default portion and cooking method",
+        "properties": {
+          "weightG": {
+            "type": "number",
+            "format": "double",
+            "description": "Default weight in grams for one person",
+            "example": 200.0
+          },
+          "cookingMethod": {
+            "type": "string",
+            "description": "Cooking method this component is prepared with",
+            "example": "boiled"
+          },
+          "ingredient": {
+            "$ref": "#/components/schemas/IngredientSuggestionWithNutrition",
+            "description": "Full suggestion for the component ingredient (nutrition is never populated here)"
+          }
+        },
+        "required": [
+          "weightG",
+          "cookingMethod",
+          "ingredient"
+        ]
+      },
+      "ServingUnit": {
+        "type": "object",
+        "description": "A culinary unit with its gram equivalent for a specific ingredient",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "Unit identifier (e.g. 'teaspoon')",
+            "example": "teaspoon"
+          },
+          "labelFr": {
+            "type": "string",
+            "description": "French display label",
+            "example": "c.à.c."
+          },
+          "labelEn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "English display label",
+            "example": "tsp"
+          },
+          "volumeMl": {
+            "type": "number",
+            "format": "double",
+            "description": "Volume in mL",
+            "example": 5.0
+          },
+          "grams": {
+            "type": "number",
+            "format": "double",
+            "description": "Mass in grams (volume_ml × density_g_ml)",
+            "example": 6.0
+          }
+        },
+        "required": [
+          "unit",
+          "labelFr",
+          "volumeMl",
+          "grams"
+        ]
+      }
+    }
+  },
+  "x-pn-overlay": {
+    "contractsVersion": "1.8.0",
+    "overlayVersion": 1,
+    "upstreamContractVersion": "1.3.0",
+    "generatedBy": "scripts/patch_spec.py",
+    "note": "Generated file. Edit overlay.yaml and re-run; never edit this document."
+  }
+}

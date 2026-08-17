@@ -1,0 +1,5 @@
+Vendored from pocket-nutrition-contracts 1.8.0
+by scripts/sync-contracts.sh — do not edit these files by hand.
+
+They are generated or curated upstream. To change one: change it in the contracts
+repository, tag a release, bump CONTRACTS_VERSION here, and run --update.

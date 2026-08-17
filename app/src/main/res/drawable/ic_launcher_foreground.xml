@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  PROVISIONAL launcher mark, not a designed logo. A leaf silhouette in brand green with a carrot-
+  coloured midrib, drawn as a vector so nothing binary is committed and it scales cleanly.
+
+  It exists because an app with no icon gets a blank system default, and lint rightly rejects that.
+  Replacing it with real artwork is a design task; keep the adaptive-icon structure when doing so.
+  Adaptive icons crop to a circle on many launchers, so all artwork stays inside the middle 66 %.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_leaf"
+        android:pathData="M54,30 C70,34 76,48 74,62 C72,74 62,80 52,78 C40,76 32,64 34,50 C36,38 44,32 54,30 Z" />
+    <path
+        android:fillColor="@color/ic_launcher_mark"
+        android:pathData="M54,32 L54,76"
+        android:strokeColor="@color/ic_launcher_mark"
+        android:strokeWidth="3" />
+</vector>

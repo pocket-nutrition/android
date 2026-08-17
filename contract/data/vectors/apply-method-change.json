@@ -1,0 +1,397 @@
+{
+  "suite": "apply-method-change",
+  "description": "Re-derives the weight when the user changes cooking method. Branch order matters and is part of the contract: (1) target \"raw\" — from a portion factor recompute base * factor, else invert the current yield if the weight was cooked, else leave it alone; (2) a portion factor is present — recompute from the base and force the result cooked; (3) the weight was cooked — convert through the raw equivalent, leaving measuredState untouched; (4) otherwise only the method changes. `id` is supplied in the input here, so it is asserted too.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "to-raw-from-a-portion-factor",
+      "why": "With a portion factor the raw weight is authoritative: 75 g base * 1 = 75 g, discarding the 64 g cooked weight entirely rather than inverting it.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 1,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "raw"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "raw",
+        "quantity": 75,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-raw-from-a-half-portion-factor-hits-a-tie",
+      "why": "A rounding tie on a user-reachable path: 75 * 0.5 = 37.5 exactly, so the half-up rule gives 38. Any port that rounds this differently disagrees with the app on a value the user can produce by tapping \"Demi\".",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 0.5,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "raw"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "raw",
+        "quantity": 38,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 0.5,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-raw-from-a-cooked-weight-inverts-the-yield",
+      "why": "Without a portion factor the only route back to a raw weight is to divide by the yield that produced it: 64 / 0.85 = 75.29 -> 75 g. A port that multiplies instead gives 54 g, and the error compounds on the next method change.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "raw"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "raw",
+        "quantity": 75,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-raw-from-a-raw-weight-keeps-the-quantity",
+      "why": "Already a raw weight, so it passes through untouched and unrounded. Only cookingMethod and measuredState move.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 80,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "raw"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "raw",
+        "quantity": 80,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-cooked-from-a-portion-factor-applies-the-yield",
+      "why": "75 g raw at yield 0.85 gives 63.75 -> 64 g and measuredState becomes \"cooked\". The result is forced cooked on this branch regardless of what it was before.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 1,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "boiled"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "boiled",
+        "quantity": 64,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "method-swap-round-trips-through-the-raw-equivalent",
+      "why": "The double conversion, and the subtlest case in the corpus. Boiled 64 g -> raw equivalent 64/0.85 = 75.294 -> grilled 75.294*0.7 = 52.706 -> 53 g. Rounding happens ONCE, at the end: rounding the intermediate to 75 first also gives 53 here but drifts on other factor pairs. measuredState stays \"cooked\" — this branch does not touch it.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "boiled": 0.85,
+            "grilled": 0.7
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "grilled"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "grilled",
+        "quantity": 53,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "boiled": 0.85,
+          "grilled": 0.7
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "method-swap-on-a-raw-weight-changes-only-the-method",
+      "why": "The fall-through branch. A raw-measured weight is what the user puts in the pan, so switching from grilling to roasting must not rescale it. Everything except cookingMethod is identical to the input.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 80,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "grilled"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "grilled",
+        "quantity": 80,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-cooked-without-yield-data-keeps-the-weight",
+      "why": "No yield in Knowledge means factor 1, so the weight is unchanged while measuredState still flips to \"cooked\". The state stays honest about what the number represents even when the conversion is unknown; that is not an excuse to invent one.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 1,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {},
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "newMethod": "boiled"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "boiled",
+        "quantity": 75,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {},
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    }
+  ]
+}

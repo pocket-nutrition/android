@@ -1,0 +1,56 @@
+{
+  "suite": "step-raw-weight",
+  "description": "Raw weight a scale step resolves to. Factor steps scale the base portion; unit steps multiply the unit weight and IGNORE the base portion entirely. Returns an unrounded value on purpose — rounding happens once, at display or storage, never here.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "factor-scales-the-base-portion",
+      "why": "Half of 75 g is 37.5 g, and it stays 37.5 — pins that this function does not round.",
+      "input": {
+        "step": {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "½"
+        },
+        "basePortionG": 75
+      },
+      "expected": 37.5
+    },
+    {
+      "id": "unit-ignores-the-base-portion",
+      "why": "Two carrots weigh 148 g regardless of the 75 g base portion passed in. A port that also multiplies by the base portion is wrong by a factor of 75.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 2
+        },
+        "basePortionG": 75
+      },
+      "expected": 148
+    },
+    {
+      "id": "fractional-unit-count",
+      "why": "Half a carrot is 37 g exactly, so this case happens to be integral — it is here to show fractional counts are supported at all, not only whole items.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.5
+        },
+        "basePortionG": 75
+      },
+      "expected": 37
+    }
+  ]
+}

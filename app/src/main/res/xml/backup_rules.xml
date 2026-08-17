@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  Auto Backup rules for Android 11 and below (android:fullBackupContent).
+
+  journal.json is the food diary. It lives in filesDir and must never leave the device, because
+  JournalScreen tells the user exactly that: "Vos repas sont enregistrés uniquement sur cet appareil."
+  With backup unrestricted it was being uploaded to the user's Google Drive, making that sentence
+  false — and it is a sentence about health data, which is the worst kind to be wrong about.
+
+  Android 12+ reads res/xml/data_extraction_rules.xml instead. Both files are needed: minSdk is 26,
+  so devices on 11 and below are still in scope and would ignore this one's replacement.
+-->
+<full-backup-content>
+    <exclude domain="file" path="journal.json" />
+</full-backup-content>

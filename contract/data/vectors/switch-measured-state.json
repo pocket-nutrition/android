@@ -1,0 +1,297 @@
+{
+  "suite": "switch-measured-state",
+  "description": "Reinterprets a weight as a pre- or post-cooking measurement, converting it so it still describes the same food: multiply by the yield going to \"cooked\", divide coming back to \"raw\" — the same direction convention as apply-method-change branch 1, so the two compose without a sign error. A row already in the requested state is returned untouched rather than converted twice, which is load-bearing: a toggle re-emitting its current value is normal, and without the guard every such event would rescale the weight again. The yield comes from resolveYieldFactor, so a raw method and absent Knowledge data both give factor 1.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "to-cooked-multiplies-by-the-yield",
+      "why": "100 g weighed before cooking is 70 g after, at a grilled yield of 0.7. A port that divides here reports 143 g of chicken and overstates every nutrient by more than 40%.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "grilled",
+          "quantity": 100,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "grilled": 0.7
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "cooked"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "grilled",
+        "quantity": 70,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "grilled": 0.7
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-raw-divides-by-the-yield",
+      "why": "The exact inverse of the case above, and it must round-trip: 70 g cooked back to 100 g raw. A toggle the user flips twice has to land on the number they started from.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "grilled",
+          "quantity": 70,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "grilled": 0.7
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "raw"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "grilled",
+        "quantity": 100,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "grilled": 0.7
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "to-cooked-hits-a-rounding-tie",
+      "why": "THE PORT-BREAKING CASE. 50 * 0.85 = 42.5 exactly, so half-up gives 43 — but Kotlin's kotlin.math.round and Swift's rounded() both break ties toward even and give 42. Without this case a port using the platform round passes every other vector here and shows the user a different gram than the web does.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 50,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "cooked"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "boiled",
+        "quantity": 43,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "switching-to-the-state-it-is-already-in-changes-nothing",
+      "why": "The guard, and it is not defensive noise: a toggle button re-emitting its current value is ordinary, and without this branch every such event would multiply the weight by the yield again. 64 g must stay 64 g, not become 54.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 64,
+          "unit": "g",
+          "measuredState": "cooked",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "cooked"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "boiled",
+        "quantity": 64,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "no-yield-data-flips-the-state-and-keeps-the-weight",
+      "why": "Knowledge has no yield for this food, so the factor is 1 and the number cannot be converted — but measuredState still flips, because the state must stay honest about what the number represents. An unknown conversion is not a licence to invent one.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "boiled",
+          "quantity": 120,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {},
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "cooked"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "boiled",
+        "quantity": 120,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {},
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "a-raw-method-yields-one-so-the-weight-is-unchanged",
+      "why": "cookingMethod \"raw\" resolves to factor 1 by definition, not by absence of data — there is nothing to convert through. The state still flips, which is what lets a user say \"this 90 g of salad is what I put on the plate\" without the number moving.",
+      "input": {
+        "ingredient": {
+          "id": "rice-fixture",
+          "label": "riz",
+          "ingredientId": "rice",
+          "cookingMethod": "raw",
+          "quantity": 90,
+          "unit": "g",
+          "measuredState": "raw",
+          "basePortionG": 75,
+          "portionFactor": 0,
+          "servingUnits": [],
+          "selectedUnit": null,
+          "unitCount": 1,
+          "displayUnit": "g",
+          "canEatRaw": false,
+          "yieldFactors": {
+            "cooked": 0.85
+          },
+          "imageUrl": null,
+          "servingMode": "weight"
+        },
+        "to": "cooked"
+      },
+      "expected": {
+        "id": "rice-fixture",
+        "label": "riz",
+        "ingredientId": "rice",
+        "cookingMethod": "raw",
+        "quantity": 90,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 75,
+        "portionFactor": 0,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.85
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    }
+  ]
+}

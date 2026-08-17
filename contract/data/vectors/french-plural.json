@@ -1,0 +1,61 @@
+{
+  "suite": "french-plural",
+  "description": "Naive French plural: append \"s\" from 2 upwards, unless the word already ends in \"s\". Real plural forms belong in Knowledge (set_ingredient_plural); until they exist all clients must be wrong in exactly the same way, which is what these vectors enforce.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "one-is-singular",
+      "why": "The baseline: exactly one stays singular, which is the same in French and English and so the case least likely to reveal a wrong port on its own.",
+      "input": {
+        "label": "carotte",
+        "count": 1
+      },
+      "expected": "carotte"
+    },
+    {
+      "id": "one-and-a-half-is-singular",
+      "why": "French keeps the singular below 2, unlike English: \"1,5 carotte\".",
+      "input": {
+        "label": "carotte",
+        "count": 1.5
+      },
+      "expected": "carotte"
+    },
+    {
+      "id": "two-is-plural",
+      "why": "The threshold is 2 and it is inclusive, so this is the first count that pluralises. Together with the 1.5 case it fixes the boundary exactly.",
+      "input": {
+        "label": "carotte",
+        "count": 2
+      },
+      "expected": "carottes"
+    },
+    {
+      "id": "fractional-above-two-is-plural",
+      "why": "Reachable from describeQuantity: 160 g of carrot is 2.2 items.",
+      "input": {
+        "label": "carotte",
+        "count": 2.2
+      },
+      "expected": "carottes"
+    },
+    {
+      "id": "already-ends-in-s",
+      "why": "Invariable words must not gain a second s (\"ananass\").",
+      "input": {
+        "label": "ananas",
+        "count": 3
+      },
+      "expected": "ananas"
+    },
+    {
+      "id": "half-is-singular",
+      "why": "Fractions below one are singular too, so the rule is a single threshold at 2 rather than a special case for \"exactly 1\".",
+      "input": {
+        "label": "carotte",
+        "count": 0.5
+      },
+      "expected": "carotte"
+    }
+  ]
+}

@@ -1,0 +1,320 @@
+{
+  "suite": "describe-quantity",
+  "description": "The collapsed-row quantity summary. Three branches, tried in order: (1) within 4 % of an anchor, but never closer than 2 g, use that anchor's clean label; (2) otherwise an \"≈ descriptor\" headline, by item count when an item unit is known, else by portion ratio, snapping to a named anchor when within 8 %; (3) otherwise grams alone with an empty secondary line. Weights under 1 render \"< 1g\" / \"< 1 mL\", never \"0g\".",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "on-anchor-exact",
+      "why": "Landing exactly on an anchor shows its label, with the exact weight underneath.",
+      "input": {
+        "currentG": 64,
+        "anchors": [
+          {
+            "label": "¼",
+            "grams": 16
+          },
+          {
+            "label": "Petite",
+            "grams": 32
+          },
+          {
+            "label": "1 part",
+            "grams": 64
+          },
+          {
+            "label": "Grande",
+            "grams": 96
+          },
+          {
+            "label": "Double",
+            "grams": 128
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "1 part",
+        "secondary": "64g"
+      }
+    },
+    {
+      "id": "on-anchor-within-4-percent",
+      "why": "Pins the tolerance window: 66 g is 3.1 % from the 64 g anchor, so the clean label is kept rather than degrading to a ratio the moment the user nudges the value.",
+      "input": {
+        "currentG": 66,
+        "anchors": [
+          {
+            "label": "¼",
+            "grams": 16
+          },
+          {
+            "label": "Petite",
+            "grams": 32
+          },
+          {
+            "label": "1 part",
+            "grams": 64
+          },
+          {
+            "label": "Grande",
+            "grams": 96
+          },
+          {
+            "label": "Double",
+            "grams": 128
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "1 part",
+        "secondary": "66g"
+      }
+    },
+    {
+      "id": "anchor-tolerance-has-a-2g-floor",
+      "why": "Pins max(2, grams * 0.04). For a 16 g anchor, 4 % is 0.64 g, which would make the label practically unreachable; the 2 g floor keeps small portions usable.",
+      "input": {
+        "currentG": 18,
+        "anchors": [
+          {
+            "label": "¼",
+            "grams": 16
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "¼",
+        "secondary": "18g"
+      }
+    },
+    {
+      "id": "nearest-anchor-wins",
+      "why": "When two anchors both fall inside tolerance the closer one wins, not the first one scanned. A port that returns on first match disagrees here.",
+      "input": {
+        "currentG": 64,
+        "anchors": [
+          {
+            "label": "Petite",
+            "grams": 63
+          },
+          {
+            "label": "1 part",
+            "grams": 66
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "Petite",
+        "secondary": "64g"
+      }
+    },
+    {
+      "id": "between-anchors-portion-descriptor",
+      "why": "THE ROUNDING TIE. 80/64 = 1.25 exactly, so round1 evaluates roundHalfUp(12.5)/10. Half-up gives \"1,3\"; Kotlin's ties-to-even default gives \"1,2\". Nothing errors — the label is quietly different, which is why the rounding suite exists.",
+      "input": {
+        "currentG": 80,
+        "anchors": [
+          {
+            "label": "¼",
+            "grams": 16
+          },
+          {
+            "label": "Petite",
+            "grams": 32
+          },
+          {
+            "label": "1 part",
+            "grams": 64
+          },
+          {
+            "label": "Grande",
+            "grams": 96
+          },
+          {
+            "label": "Double",
+            "grams": 128
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "≈ 1,3 portion",
+        "secondary": "80g"
+      }
+    },
+    {
+      "id": "between-anchors-snaps-to-named-descriptor",
+      "why": "Pins the 8 % named window, which is wider than the 4 % exact window: 100 g is 1.5625 portions, 4.2 % from Grande, so the headline reads \"≈ Grande\" rather than a bare ratio. It is NOT an anchor hit — 100 g is 4.2 % from the 96 g anchor, just outside.",
+      "input": {
+        "currentG": 100,
+        "anchors": [
+          {
+            "label": "¼",
+            "grams": 16
+          },
+          {
+            "label": "Petite",
+            "grams": 32
+          },
+          {
+            "label": "1 part",
+            "grams": 64
+          },
+          {
+            "label": "Grande",
+            "grams": 96
+          },
+          {
+            "label": "Double",
+            "grams": 128
+          }
+        ],
+        "ctx": {
+          "portionG": 64,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "≈ Grande",
+        "secondary": "100g"
+      }
+    },
+    {
+      "id": "item-descriptor-singular",
+      "why": "Countable foods are described in items, never in culinary units. 1.1 stays singular.",
+      "input": {
+        "currentG": 81,
+        "anchors": [
+          {
+            "label": "1 carotte",
+            "grams": 74
+          }
+        ],
+        "ctx": {
+          "servingMode": "item",
+          "itemUnitG": 74,
+          "itemLabel": "carotte",
+          "portionG": 74,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "≈ 1,1 carotte",
+        "secondary": "81g"
+      }
+    },
+    {
+      "id": "item-descriptor-plural",
+      "why": "At 2 or more the label pluralises, so the French plural rule is reachable from this path too, not only from stepLabel.",
+      "input": {
+        "currentG": 160,
+        "anchors": [
+          {
+            "label": "1 carotte",
+            "grams": 74
+          }
+        ],
+        "ctx": {
+          "servingMode": "item",
+          "itemUnitG": 74,
+          "itemLabel": "carotte",
+          "portionG": 74,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "≈ 2,2 carottes",
+        "secondary": "160g"
+      }
+    },
+    {
+      "id": "item-sliver-falls-through-to-grams",
+      "why": "Below a quarter of an item, \"≈ 0,1 carotte\" is noise, so the branch is skipped and grams are shown alone. It does NOT fall back to the portion-ratio branch: that is an else-if on the item branch, so a port must preserve the nesting.",
+      "input": {
+        "currentG": 10,
+        "anchors": [],
+        "ctx": {
+          "itemUnitG": 74,
+          "itemLabel": "carotte",
+          "portionG": 74,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "10g",
+        "secondary": ""
+      }
+    },
+    {
+      "id": "millilitres-use-a-space-and-capital-L",
+      "why": "Volume foods render \"270 mL\" — space, capital L — while grams render \"64g\" with no space. Two formats in one function, both user-visible.",
+      "input": {
+        "currentG": 270,
+        "anchors": [
+          {
+            "label": "1 part",
+            "grams": 246
+          }
+        ],
+        "ctx": {
+          "portionG": 246,
+          "displayUnit": "ml"
+        }
+      },
+      "expected": {
+        "primary": "≈ 1,1 portion",
+        "secondary": "270 mL"
+      }
+    },
+    {
+      "id": "sub-gram-renders-less-than-one",
+      "why": "A weight under 1 g must not render \"0g\". With no anchors and no portion the third branch applies, so the secondary line is empty.",
+      "input": {
+        "currentG": 0.4,
+        "anchors": [],
+        "ctx": {
+          "portionG": 0,
+          "displayUnit": "g"
+        }
+      },
+      "expected": {
+        "primary": "< 1g",
+        "secondary": ""
+      }
+    },
+    {
+      "id": "sub-millilitre-renders-less-than-one",
+      "why": "The same guard on the volume side, where the suffix differs.",
+      "input": {
+        "currentG": 0.5,
+        "anchors": [],
+        "ctx": {
+          "portionG": 0,
+          "displayUnit": "ml"
+        }
+      },
+      "expected": {
+        "primary": "< 1 mL",
+        "secondary": ""
+      }
+    }
+  ]
+}

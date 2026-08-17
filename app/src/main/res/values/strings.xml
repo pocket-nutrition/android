@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  Only the launcher label lives here for now. The French copy deck
+  (contract/data/strings/fr.json) is vendored but not yet wired into resources — that lands with the
+  first real screen, so the mapping is reviewed alongside the UI that uses it rather than guessed at
+  in advance. The product name itself is never translated.
+-->
+<resources>
+    <string name="app_name">Pocket Nutrition</string>
+</resources>

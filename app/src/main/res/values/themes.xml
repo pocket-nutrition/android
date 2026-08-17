@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+
+  A minimal XML theme. Compose owns the real styling via PnTheme; this exists only so the window has
+  the right background before the first frame, which is what stops the launch flashing white on a
+  paper-coloured app.
+
+  The colour is repeated here as a literal because an XML theme cannot read a Kotlin constant. It is
+  the one place a token value is duplicated, and ThemeResourceTest asserts the two agree so the
+  duplication cannot drift.
+-->
+<resources>
+    <style name="Theme.PocketNutrition" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- color.surface.paper -->
+        <item name="android:windowBackground">#faf7f0</item>
+        <item name="android:statusBarColor">#faf7f0</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

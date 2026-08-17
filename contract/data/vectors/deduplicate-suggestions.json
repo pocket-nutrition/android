@@ -1,0 +1,612 @@
+{
+  "suite": "deduplicate-suggestions",
+  "description": "Turns a raw search response into the list a client renders. Four rules and the order between them is the contract: (1) recipes are lifted out first, always lead, and are never deduplicated away; (2) results in the requested language come first ONLY when there are at least 3 of them — below that the server order is kept whole, NOT same-language-first, so a port that always sorts by language is wrong; (3) the remainder is deduplicated by lowercased+trimmed label, first occurrence winning, AND by brand alongside the label — two products of the same name from different brands are separate rows, the same name and brand is noise, and a brandless product keys on the label alone so it collapses into the curated ingredient of that name; (4) the result is capped, and recipes count toward the cap but are never dropped by it, so an all-recipe response may exceed it. Recipe labels are NOT added to the seen set, so a recipe and an ingredient with the same label both survive. Deduplication is never by ingredientId, which is unique per row and would dedupe nothing.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "collapses-the-real-poulet-response",
+      "why": "The exact shape that motivated the suite, copied from the live API: one curated ingredient labelled \"poulet\" and three OFF products labelled \"Poulet\". Because the key is lowercased, all four share it and the whole response collapses to the ONE row a user can act on — the curated ingredient, which leads because the server ranked it first. Four indistinguishable rows became one; that is the entire point.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "chicken",
+            "label": "poulet",
+            "lang": "fr",
+            "productType": "ingredient",
+            "brand": null
+          },
+          {
+            "ingredientId": "off:0000300000685",
+            "label": "Poulet",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "off:0706799200064",
+            "label": "Poulet",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "off:0266405058644",
+            "label": "Poulet",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "chicken",
+          "label": "poulet",
+          "lang": "fr",
+          "productType": "ingredient",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "first-occurrence-wins",
+      "why": "Deduplication keeps the earliest match, so the server ranking decides which duplicate survives. A port that keeps the last would silently reorder every ambiguous result.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "a",
+            "label": "Riz",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "b",
+            "label": "Riz",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "c",
+            "label": "Pâtes",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "a",
+          "label": "Riz",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "c",
+          "label": "Pâtes",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "label-key-is-lowercased-and-trimmed",
+      "why": "Whitespace and casing come from two different upstream databases and must not create a second row. Trimming matters as much as lowercasing: OFF labels frequently carry a trailing space.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "a",
+            "label": "Tofu",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "b",
+            "label": "  tofu ",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "c",
+            "label": "TOFU",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "a",
+          "label": "Tofu",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "three-french-results-move-ahead",
+      "why": "At the MIN_SAME_LANG threshold of 3 the language preference switches on, so the French entries lead and the English ones follow — even though the server sent them interleaved.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "e1",
+            "label": "Bread",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "f1",
+            "label": "Pain",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "f2",
+            "label": "Baguette",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "f3",
+            "label": "Brioche",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "f1",
+          "label": "Pain",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "f2",
+          "label": "Baguette",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "f3",
+          "label": "Brioche",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "e1",
+          "label": "Bread",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "two-french-results-keep-server-order",
+      "why": "One below the threshold, and this is the case a naive port fails. With only two French results the server order is kept WHOLE — the English entry stays where it was, ahead of the second French one. Not same-language-first, not a stable partition: untouched.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "f1",
+            "label": "Pain",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "e1",
+            "label": "Bread",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "f2",
+            "label": "Baguette",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "f1",
+          "label": "Pain",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "e1",
+          "label": "Bread",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "f2",
+          "label": "Baguette",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "recipes-lead-whatever-the-server-order",
+      "why": "A recipe is the highest-value result — one tap expands into a whole meal — so it is lifted to the front even when the server ranked it last.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:1",
+            "label": "Raclette",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "recipe:raclette",
+            "label": "raclette traditionnelle",
+            "lang": "fr",
+            "productType": "recipe",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "recipe:raclette",
+          "label": "raclette traditionnelle",
+          "lang": "fr",
+          "productType": "recipe",
+          "brand": null
+        },
+        {
+          "ingredientId": "off:1",
+          "label": "Raclette",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "recipe-and-ingredient-share-a-label",
+      "why": "Recipe labels are deliberately NOT added to the seen set: a recipe called \"couscous\" and an ingredient called \"couscous\" are two different things to add, so both survive. A port that seeds the set from the recipes would drop the ingredient.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "recipe:couscous",
+            "label": "couscous",
+            "lang": "fr",
+            "productType": "recipe",
+            "brand": null
+          },
+          {
+            "ingredientId": "couscous",
+            "label": "couscous",
+            "lang": "fr",
+            "productType": "ingredient",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "recipe:couscous",
+          "label": "couscous",
+          "lang": "fr",
+          "productType": "recipe",
+          "brand": null
+        },
+        {
+          "ingredientId": "couscous",
+          "label": "couscous",
+          "lang": "fr",
+          "productType": "ingredient",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "cap-counts-recipes-but-never-drops-them",
+      "why": "Recipes are already in the result when the loop starts, so they consume the cap: with a cap of 2 and one recipe, only one further row is admitted. Dropping a recipe to honour a display cap would discard the best result to make room for a worse one.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "recipe:x",
+            "label": "Gratin",
+            "lang": "fr",
+            "productType": "recipe",
+            "brand": null
+          },
+          {
+            "ingredientId": "a",
+            "label": "Pomme de terre",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "b",
+            "label": "Crème",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr",
+        "maxResults": 2
+      },
+      "expected": [
+        {
+          "ingredientId": "recipe:x",
+          "label": "Gratin",
+          "lang": "fr",
+          "productType": "recipe",
+          "brand": null
+        },
+        {
+          "ingredientId": "a",
+          "label": "Pomme de terre",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "identical-ids-are-irrelevant",
+      "why": "Deduplication is by label only. Two rows with different ids and the same label collapse; the ingredientId is unique per row and keying on it would dedupe nothing at all, which is exactly the bug that shipped in both native clients.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:111",
+            "label": "Yaourt",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "off:222",
+            "label": "Yaourt",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "off:111",
+          "label": "Yaourt",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "empty-response-is-empty",
+      "why": "No results is a normal answer, not an error, and must not become a one-element list of undefined when a port maps before checking length.",
+      "input": {
+        "items": [],
+        "preferLang": "fr"
+      },
+      "expected": []
+    },
+    {
+      "id": "same-label-different-brands-are-separate-rows",
+      "why": "The reason brand joined the key. Open Food Facts holds thousands of products whose name is the bare food word, so before brand reached the row this response collapsed to ONE — the label-only key made three genuinely different products indistinguishable, and the fix for \"thirty identical rows\" had turned into \"one row\". With a brand on the row a viewer can tell them apart, so they are three things to add.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:1",
+            "label": "Poulet",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Le Gaulois"
+          },
+          {
+            "ingredientId": "off:2",
+            "label": "Poulet",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Fleury Michon"
+          },
+          {
+            "ingredientId": "off:3",
+            "label": "Poulet",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Maître Coq"
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "off:1",
+          "label": "Poulet",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Le Gaulois"
+        },
+        {
+          "ingredientId": "off:2",
+          "label": "Poulet",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Fleury Michon"
+        },
+        {
+          "ingredientId": "off:3",
+          "label": "Poulet",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Maître Coq"
+        }
+      ]
+    },
+    {
+      "id": "same-label-and-same-brand-still-collapses",
+      "why": "Brand widens the key without disabling it. One brand listing the same product name under several barcodes — different pack sizes, relistings — is still noise a viewer cannot resolve, so the first occurrence wins exactly as before.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:1",
+            "label": "Poulet rôti",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Le Gaulois"
+          },
+          {
+            "ingredientId": "off:2",
+            "label": "Poulet rôti",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Le Gaulois"
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "off:1",
+          "label": "Poulet rôti",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Le Gaulois"
+        }
+      ]
+    },
+    {
+      "id": "a-brandless-product-collapses-into-the-curated-ingredient",
+      "why": "The behaviour that must NOT change. A curated ingredient has no brand, so when a product shares its name and also has none, both key on the label alone and the curated entry wins by arriving first. That is the right winner: it carries yield factors, serving units and a food group, where the product carries none of them.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "chicken",
+            "label": "poulet",
+            "lang": "fr",
+            "productType": "ingredient",
+            "brand": null
+          },
+          {
+            "ingredientId": "off:1",
+            "label": "Poulet",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "chicken",
+          "label": "poulet",
+          "lang": "fr",
+          "productType": "ingredient",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "the-brand-half-of-the-key-is-lowercased-and-trimmed",
+      "why": "Brand gets the same normalisation as the label, or Open Food Facts casing variants leak through as separate rows. Contributors enter the same brand as \"Bonduelle\", \"BONDUELLE\" and \" bonduelle \" constantly.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:1",
+            "label": "Petits pois",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Bonduelle"
+          },
+          {
+            "ingredientId": "off:2",
+            "label": "Petits pois",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": " BONDUELLE "
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "off:1",
+          "label": "Petits pois",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Bonduelle"
+        }
+      ]
+    },
+    {
+      "id": "the-key-separator-cannot-be-forged-across-the-two-halves",
+      "why": "The two halves are joined, so a naive concatenation would make label \"Jus\" + brand \"Orange\" collide with label \"Jus Orange\" + no brand. They are different products and must both survive. A port that keys on `label + brand` with no separator fails only here.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "off:1",
+            "label": "Jus",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": "Orange"
+          },
+          {
+            "ingredientId": "off:2",
+            "label": "Jus Orange",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "fr"
+      },
+      "expected": [
+        {
+          "ingredientId": "off:1",
+          "label": "Jus",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": "Orange"
+        },
+        {
+          "ingredientId": "off:2",
+          "label": "Jus Orange",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "suite": "rounding",
+  "description": "roundHalfUp(x) = floor(x + 0.5); a tie always goes to the larger value. Port as floor(x + 0.5) in Kotlin — NOT kotlin.math.round, which breaks ties towards even — and as (x + 0.5).rounded(.down) in Swift. Every weight in the app goes through this.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "tie-half",
+      "why": "The defining case: 0.5 goes up, not to even.",
+      "input": {
+        "value": 0.5
+      },
+      "expected": 1
+    },
+    {
+      "id": "tie-one-and-a-half",
+      "why": "Ties-to-even agrees here (2), so this case alone cannot detect a wrong port. It is kept so the 1.5 / 2.5 pair shows the divergence side by side.",
+      "input": {
+        "value": 1.5
+      },
+      "expected": 2
+    },
+    {
+      "id": "tie-two-and-a-half",
+      "why": "kotlin.math.round(2.5) returns 2. This is the case that catches a naive Kotlin port.",
+      "input": {
+        "value": 2.5
+      },
+      "expected": 3
+    },
+    {
+      "id": "tie-twelve-and-a-half",
+      "why": "The tie actually reached in production: describeQuantity(80, portionG 64) computes 80/64 = 1.25, then round1 evaluates roundHalfUp(12.5)/10. Half-up gives \"≈ 1,3 portion\", ties-to-even gives \"≈ 1,2 portion\", and nothing reports an error.",
+      "input": {
+        "value": 12.5
+      },
+      "expected": 13
+    },
+    {
+      "id": "below-half",
+      "why": "Just below the tie rounds down. Brackets the boundary from the left, so an implementation using >= where it should use > is caught.",
+      "input": {
+        "value": 0.49999
+      },
+      "expected": 0
+    },
+    {
+      "id": "above-half",
+      "why": "Just above the tie rounds up. The right-hand bracket of the boundary, so only the exact tie is decided by the tie rule and nothing either side of it is.",
+      "input": {
+        "value": 0.50001
+      },
+      "expected": 1
+    },
+    {
+      "id": "already-integer",
+      "why": "An exact integer must not move. floor(n + 0.5) is a common place to introduce an off-by-one when reimplementing.",
+      "input": {
+        "value": 64
+      },
+      "expected": 64
+    },
+    {
+      "id": "zero",
+      "why": "Zero is reachable (an ingredient scaled down to nothing) and must stay zero.",
+      "input": {
+        "value": 0
+      },
+      "expected": 0
+    },
+    {
+      "id": "yield-applied-to-base-portion",
+      "why": "A real weight computation: 75 g of raw rice at yield 0.85 gives 63.75 g cooked.",
+      "input": {
+        "value": 63.75
+      },
+      "expected": 64
+    },
+    {
+      "id": "tie-from-half-a-tablespoon",
+      "why": "A 15 g serving unit halved gives an exact 7.5 g tie, so shortcut increments reach the tie rule as well as portion labels.",
+      "input": {
+        "value": 7.5
+      },
+      "expected": 8
+    }
+  ]
+}

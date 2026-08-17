@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: MPL-2.0
+  Launcher icon colours, taken from the brand tokens. Duplicated here as literals because a resource
+  file cannot read a Kotlin constant; ThemeResourceTest asserts they still agree with the tokens.
+-->
+<resources>
+    <color name="ic_launcher_background">#1f3d29</color>  <!-- color.brand.leafDeep -->
+    <color name="ic_launcher_leaf">#3e7a4e</color>        <!-- color.brand.leaf -->
+    <color name="ic_launcher_mark">#e07a2f</color>        <!-- color.brand.carrot -->
+</resources>

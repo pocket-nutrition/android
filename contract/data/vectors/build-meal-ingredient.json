@@ -1,0 +1,522 @@
+{
+  "suite": "build-meal-ingredient",
+  "description": "Search result or recipe component -> meal row, or null when the server did not supply the food data the row needs. THE CLIENT HOLDS NO FOOD DATA: there is no label->cooking-method table and no label->portion table, and nothing is substituted when a server field is absent. Cooking method comes from an explicit override, else from typicalState — which passes through when it is already a cooking method (boiled/steamed/grilled/roasted/fried), maps \"processed\" to \"raw\" (eaten as sold, no cooking transform), and gives null for the generic \"cooked\" because it does not say how. A null servingG, an unusable typicalState, or a missing portionMeasuredState on a cooked row each return null; the port must skip the item, never invent a weight. WEIGHT SEMANTICS: `measuredState` records whether `quantity` is a raw or a cooked weight, and the yield factor is applied only when a cooked weight is wanted from a raw base. A recipe `quantityG` is always a pre-cooking weight. The generated `id` is excluded from these vectors because it embeds a timestamp.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "heuristics-only-raw-typical-state",
+      "why": "The plain search-result path. typicalState \"raw\" wins over the label heuristic, which would have said \"boiled\" for a potato, so nothing is cooked and no yield is applied.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "potato",
+            "label": "pomme de terre",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "pomme de terre",
+        "ingredientId": "potato",
+        "cookingMethod": "raw",
+        "quantity": 80,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 80,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "boiled": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "recipe-override-weight-is-measured-raw",
+      "why": "A recipe says \"200 g of potato\", which is what goes in the pan — a pre-cooking weight. So measuredState is \"raw\" even though cookingMethod is \"boiled\", and the yield is NOT applied to the given quantity. Getting this backwards skews every recipe by the yield.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "potato",
+            "label": "pomme de terre",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          },
+          "cookingMethod": "boiled",
+          "quantityG": 200
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "pomme de terre",
+        "ingredientId": "potato",
+        "cookingMethod": "boiled",
+        "quantity": 200,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 80,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "boiled": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "raw-override-keeps-raw-state",
+      "why": "A raw override is not cooked, so measuredState stays raw through the other branch of the same expression. Both branches must agree or nothing downstream makes sense.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "potato",
+            "label": "pomme de terre",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          },
+          "cookingMethod": "raw",
+          "quantityG": 50
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "pomme de terre",
+        "ingredientId": "potato",
+        "cookingMethod": "raw",
+        "quantity": 50,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 80,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "boiled": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "gram-override-defeats-a-millilitre-display-unit",
+      "why": "The suggestion says displayUnit \"ml\", but an explicit gram quantity from a recipe wins: the row comes out in grams and the built displayUnit is \"g\", not the suggestion's \"ml\". A port that copies displayUnit straight through gets this wrong.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "potato",
+            "label": "pomme de terre",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 80,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "ml",
+            "yieldFactors": {
+              "boiled": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          },
+          "cookingMethod": "raw",
+          "quantityG": 30
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "pomme de terre",
+        "ingredientId": "potato",
+        "cookingMethod": "raw",
+        "quantity": 30,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 80,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "boiled": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "generic-cooked-typical-state-is-refused",
+      "why": "THE CASE THAT REPLACES THE LABEL HEURISTIC. typicalState \"cooked\" says the food is eaten cooked without saying how, and there is no server field that resolves it to a method. The deleted table answered \"grilled\" here — an invented cooking method for a baked apple. The client now returns null and the caller skips the row. Roughly 274 Knowledge ingredients (8 % of the catalogue) sit on this value; the fix is a resolved defaultCookingMethod on the API, not a guess here.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "baked_apple",
+            "label": "pomme",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 120,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "cooked",
+            "portionMeasuredState": "cooked",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "cooked": 0.8
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": null
+    },
+    {
+      "id": "null-serving-g-is-refused",
+      "why": "THE CASE THAT REPLACES THE PORTION TABLE. With servingG null there is no reference weight and the client has nothing to put in its place: the regex table that used to answer 60 g for spinach and 100 g for anything it did not recognise is gone. Returning null is the whole point of the change — an invented base portion silently scales every nutrient downstream. Every OFF product hits this until source_mappings/off/ is populated.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "spinach",
+            "label": "épinards",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": null,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "steamed",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "cooked": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": null
+    },
+    {
+      "id": "portion-measured-raw-skips-the-yield",
+      "why": "Knowledge says the portion is already stated as a raw weight, so the 214 g is used as-is and measuredState is \"raw\" — no yield applied. Pair this with portion-measured-cooked-applies-the-yield: identical inputs except portionMeasuredState. servingG 214 and typicalState are the real values the API returns for ingredient \"spinach\" (knowledge ingredients/spinach.yaml -> states.raw.portion_g).",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "spinach",
+            "label": "épinard",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 214,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "steamed",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "cooked": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "épinard",
+        "ingredientId": "spinach",
+        "cookingMethod": "steamed",
+        "quantity": 214,
+        "unit": "g",
+        "measuredState": "raw",
+        "basePortionG": 214,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "portion-measured-cooked-applies-the-yield",
+      "why": "The counterpart: the portion is stated as a cooked weight, so the raw base is converted through the generic \"cooked\" yield — 214 * 0.9 = 192.6, rounded half-up to 193. Proves the yield is applied exactly once, and only in this direction.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "spinach",
+            "label": "épinard",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 214,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "steamed",
+            "portionMeasuredState": "cooked",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {
+              "cooked": 0.9
+            },
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "épinard",
+        "ingredientId": "spinach",
+        "cookingMethod": "steamed",
+        "quantity": 193,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 214,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {
+          "cooked": 0.9
+        },
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "missing-yield-data-applies-no-conversion",
+      "why": "Knowledge has no yield at all, so the factor resolves to 1 and the weight passes through unchanged while measuredState still says \"cooked\". The client does not invent a conversion; the gap belongs in Knowledge.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "spinach",
+            "label": "épinard",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 214,
+            "densityGMl": null,
+            "canEatRaw": false,
+            "canEatCooked": true,
+            "typicalState": "steamed",
+            "portionMeasuredState": "cooked",
+            "nutrition": null,
+            "servingUnits": [],
+            "displayUnit": "g",
+            "yieldFactors": {},
+            "servingMode": "weight",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "épinard",
+        "ingredientId": "spinach",
+        "cookingMethod": "steamed",
+        "quantity": 214,
+        "unit": "g",
+        "measuredState": "cooked",
+        "basePortionG": 214,
+        "portionFactor": 1,
+        "servingUnits": [],
+        "selectedUnit": null,
+        "unitCount": 1,
+        "displayUnit": "g",
+        "canEatRaw": false,
+        "yieldFactors": {},
+        "imageUrl": null,
+        "servingMode": "weight"
+      }
+    },
+    {
+      "id": "millilitre-food-selects-the-first-serving-unit",
+      "why": "A volume food with no override comes out in mL and pre-selects the first Knowledge unit, so the stepper can move by glasses immediately.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "milk",
+            "label": "lait",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": 200,
+            "densityGMl": null,
+            "canEatRaw": true,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [
+              {
+                "unit": "glass",
+                "labelFr": "verre",
+                "volumeMl": 200,
+                "grams": 206
+              }
+            ],
+            "displayUnit": "ml",
+            "yieldFactors": {},
+            "servingMode": "volume",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": {
+        "label": "lait",
+        "ingredientId": "milk",
+        "cookingMethod": "raw",
+        "quantity": 200,
+        "unit": "ml",
+        "measuredState": "raw",
+        "basePortionG": 200,
+        "portionFactor": 1,
+        "servingUnits": [
+          {
+            "unit": "glass",
+            "labelFr": "verre",
+            "volumeMl": 200,
+            "grams": 206
+          }
+        ],
+        "selectedUnit": {
+          "unit": "glass",
+          "labelFr": "verre",
+          "volumeMl": 200,
+          "grams": 206
+        },
+        "unitCount": 1,
+        "displayUnit": "ml",
+        "canEatRaw": true,
+        "yieldFactors": {},
+        "imageUrl": null,
+        "servingMode": "volume"
+      }
+    },
+    {
+      "id": "millilitre-food-without-serving-g-is-refused",
+      "why": "A volume food with servingG null is refused too. The old chain ended in a hardcoded 200 mL for any drink Knowledge had not measured, which is the same defect as the portion table in litres. Note the remaining gap this exposes: `quantity` is taken from servingG even on an mL row, i.e. grams are read as millilitres. densityGMl is returned by the API and still unused by the viewer — converting here would need it.",
+      "input": {
+        "item": {
+          "suggestion": {
+            "ingredientId": "milk",
+            "label": "lait",
+            "lang": "fr",
+            "productType": "ingredient",
+            "servingG": null,
+            "densityGMl": null,
+            "canEatRaw": true,
+            "canEatCooked": true,
+            "typicalState": "raw",
+            "portionMeasuredState": "raw",
+            "nutrition": null,
+            "servingUnits": [
+              {
+                "unit": "glass",
+                "labelFr": "verre",
+                "volumeMl": 246,
+                "grams": 253
+              }
+            ],
+            "displayUnit": "ml",
+            "yieldFactors": {},
+            "servingMode": "volume",
+            "unitLabelFr": null,
+            "unitLabelEn": null
+          }
+        },
+        "index": 0
+      },
+      "expected": null
+    }
+  ]
+}

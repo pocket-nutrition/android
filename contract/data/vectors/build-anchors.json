@@ -1,0 +1,266 @@
+{
+  "suite": "build-anchors",
+  "description": "The coarse anchor set behind the collapsed-row summary. Countable foods — servingMode \"item\" AND an item serving unit present — get item counts 0.5/1/2/3, dropping any below 5 g. Everything else gets the five named portion factors, dropping any below 1 g. Both filters exist so no button resolves to nothing.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "weight-mode-uses-named-anchors",
+      "why": "The default path: no serving units at all.",
+      "input": {
+        "basePortionG": 75,
+        "servingUnits": [],
+        "servingMode": null
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Petite"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 part"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Grande"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "item-mode-uses-item-counts",
+      "why": "Countable foods are counted, not scaled — \"½ · 1 · 2 · 3 carottes\".",
+      "input": {
+        "basePortionG": 74,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          }
+        ],
+        "servingMode": "item"
+      },
+      "expected": [
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.5
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 1
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 2
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "item-mode-drops-counts-under-5g",
+      "why": "Half a hazelnut is 4 g, which is not a useful button, so the 0.5 step is dropped and the set starts at 1.",
+      "input": {
+        "basePortionG": 8,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labelFr": "noisette",
+            "volumeMl": 0,
+            "grams": 8
+          }
+        ],
+        "servingMode": "item"
+      },
+      "expected": [
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "noisette",
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 1
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "noisette",
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 2
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "noisette",
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "item-mode-without-an-item-unit-falls-back",
+      "why": "servingMode \"item\" is not sufficient on its own: with only a tablespoon available there is nothing to count, so the named factors apply. A port that branches on servingMode alone returns an empty set or crashes here.",
+      "input": {
+        "basePortionG": 80,
+        "servingUnits": [
+          {
+            "unit": "tablespoon",
+            "labelFr": "c. à soupe",
+            "volumeMl": 15,
+            "grams": 15
+          }
+        ],
+        "servingMode": "item"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Petite"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 part"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Grande"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "weight-mode-drops-factors-under-1g",
+      "why": "For a 2 g base portion the quarter step resolves to 0.5 g and is dropped, so the set starts at Petite. The mirror of the 5 g item filter.",
+      "input": {
+        "basePortionG": 2,
+        "servingUnits": [],
+        "servingMode": null
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Petite"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 part"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Grande"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "weight-mode-ignores-an-available-item-unit",
+      "why": "An item unit is used only when servingMode says so. Cheese sold by the piece is still scaled by weight if Knowledge says weight.",
+      "input": {
+        "basePortionG": 74,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          }
+        ],
+        "servingMode": "weight"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Petite"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 part"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Grande"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    }
+  ]
+}

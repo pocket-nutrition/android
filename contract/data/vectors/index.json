@@ -1,0 +1,109 @@
+{
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "note": "Behavioural corpus shared by the sandbox, Android and iOS. A consumer should assert on the full id set of each suite, not only the cases it happens to implement, so a skipped case fails loudly instead of passing silently.",
+  "totalCases": 144,
+  "suites": [
+    {
+      "suite": "rounding",
+      "file": "rounding.json",
+      "cases": 10,
+      "description": "roundHalfUp(x) = floor(x + 0.5); a tie always goes to the larger value. Port as floor(x + 0.5) in Kotlin — NOT kotlin.math.round, which breaks ties towards even — and as (x + 0.5).rounded(.down) in Swift. Every weight in the app goes through this."
+    },
+    {
+      "suite": "yield-factor",
+      "file": "yield-factor.json",
+      "cases": 5,
+      "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the pocket-nutrition-ml router."
+    },
+    {
+      "suite": "french-number",
+      "file": "french-number.json",
+      "cases": 6,
+      "description": "French decimal comma; integers carry no decimal part. Do NOT implement this with a locale-aware formatter — those add thousands separators and vary by platform and OS version. The rule is literally \"stringify, then replace . with ,\"."
+    },
+    {
+      "suite": "french-plural",
+      "file": "french-plural.json",
+      "cases": 6,
+      "description": "Naive French plural: append \"s\" from 2 upwards, unless the word already ends in \"s\". Real plural forms belong in Knowledge (set_ingredient_plural); until they exist all clients must be wrong in exactly the same way, which is what these vectors enforce."
+    },
+    {
+      "suite": "step-label",
+      "file": "step-label.json",
+      "cases": 6,
+      "description": "Label for one scale step. A factor step carries its own label verbatim. A unit step renders \"<count> <unit>\", the count replaced by a typographic fraction for 0.25 / 0.33 / 0.5 / 0.75 and the unit pluralised. The fraction table is keyed on the count, not on the factor."
+    },
+    {
+      "suite": "serving-unit-emoji",
+      "file": "serving-unit-emoji.json",
+      "cases": 11,
+      "description": "Cosmetic icon per serving-unit type. The vocabulary is closed and lives in pocket-nutrition-knowledge/serving_unit_types.yaml; this maps seven of its ten entries. shot, bowl and scoop have NO icon on purpose — no glyph reads unambiguously as any of them, and a wrong icon is worse than none — so `expected` is null for those, never an empty string. teaspoon and tablespoon deliberately share one glyph. An unknown unit outside the vocabulary also has none, so a client never needs a placeholder."
+    },
+    {
+      "suite": "food-group-icon",
+      "file": "food-group-icon.json",
+      "cases": 23,
+      "description": "Category glyph for a curated ingredient, which never carries a product photo. The vocabulary is closed — 21 values enumerated in pocket-nutrition-knowledge/schemas/ingredient.schema.json — and this maps 18 of them. sauce, seaweed and other are unmapped on purpose: no glyph reads unambiguously as any of them and a wrong icon is worse than none, so `expected` is null, never an empty string. Every mapped glyph is distinct, because two groups sharing one icon would defeat the point of a list meant to tell rows apart. Products and recipes are always food_group \"other\" server-side, so this never distinguishes a product from an ingredient — productType does."
+    },
+    {
+      "suite": "build-anchors",
+      "file": "build-anchors.json",
+      "cases": 6,
+      "description": "The coarse anchor set behind the collapsed-row summary. Countable foods — servingMode \"item\" AND an item serving unit present — get item counts 0.5/1/2/3, dropping any below 5 g. Everything else gets the five named portion factors, dropping any below 1 g. Both filters exist so no button resolves to nothing."
+    },
+    {
+      "suite": "step-raw-weight",
+      "file": "step-raw-weight.json",
+      "cases": 3,
+      "description": "Raw weight a scale step resolves to. Factor steps scale the base portion; unit steps multiply the unit weight and IGNORE the base portion entirely. Returns an unrounded value on purpose — rounding happens once, at display or storage, never here."
+    },
+    {
+      "suite": "describe-quantity",
+      "file": "describe-quantity.json",
+      "cases": 12,
+      "description": "The collapsed-row quantity summary. Three branches, tried in order: (1) within 4 % of an anchor, but never closer than 2 g, use that anchor's clean label; (2) otherwise an \"≈ descriptor\" headline, by item count when an item unit is known, else by portion ratio, snapping to a named anchor when within 8 %; (3) otherwise grams alone with an empty secondary line. Weights under 1 render \"< 1g\" / \"< 1 mL\", never \"0g\"."
+    },
+    {
+      "suite": "shortcut-profile",
+      "file": "shortcut-profile.json",
+      "cases": 8,
+      "description": "The row of at most four quick buttons under the value field. With no usable serving unit it is the three base-portion multipliers (Demi / 1 Part / Double). With at least one, it becomes a single \"1 Part\" anchor plus up to three Knowledge increments. The item unit is excluded because the multipliers already cover it, and units rounding below 1 are dropped. INVARIANT: the result always has between 2 and 4 entries. The client never invents a volumetric unit — an absent one is a gap to fill in Knowledge."
+    },
+    {
+      "suite": "deduplicate-suggestions",
+      "file": "deduplicate-suggestions.json",
+      "cases": 15,
+      "description": "Turns a raw search response into the list a client renders. Four rules and the order between them is the contract: (1) recipes are lifted out first, always lead, and are never deduplicated away; (2) results in the requested language come first ONLY when there are at least 3 of them — below that the server order is kept whole, NOT same-language-first, so a port that always sorts by language is wrong; (3) the remainder is deduplicated by lowercased+trimmed label, first occurrence winning, AND by brand alongside the label — two products of the same name from different brands are separate rows, the same name and brand is noise, and a brandless product keys on the label alone so it collapses into the curated ingredient of that name; (4) the result is capped, and recipes count toward the cap but are never dropped by it, so an all-recipe response may exceed it. Recipe labels are NOT added to the seen set, so a recipe and an ingredient with the same label both survive. Deduplication is never by ingredientId, which is unique per row and would dedupe nothing."
+    },
+    {
+      "suite": "selection-mode",
+      "file": "selection-mode.json",
+      "cases": 6,
+      "description": "Whether tapping a search row toggles a selection instead of adding the food immediately. True when the query was split into more than one ingredient phrase — the X-Segment-Count header, NEVER a client-side space count, because the server segments with greedy longest-match probes against the index and \"pomme de terre\" is one term. Recipes are the exception and always add immediately: a recipe is not one of the query's terms, it unpacks into a whole meal on its own. A missing or unparseable header must be read as 1, which degrades to single-add rather than to a broken picker."
+    },
+    {
+      "suite": "build-meal-ingredient",
+      "file": "build-meal-ingredient.json",
+      "cases": 11,
+      "description": "Search result or recipe component -> meal row, or null when the server did not supply the food data the row needs. THE CLIENT HOLDS NO FOOD DATA: there is no label->cooking-method table and no label->portion table, and nothing is substituted when a server field is absent. Cooking method comes from an explicit override, else from typicalState — which passes through when it is already a cooking method (boiled/steamed/grilled/roasted/fried), maps \"processed\" to \"raw\" (eaten as sold, no cooking transform), and gives null for the generic \"cooked\" because it does not say how. A null servingG, an unusable typicalState, or a missing portionMeasuredState on a cooked row each return null; the port must skip the item, never invent a weight. WEIGHT SEMANTICS: `measuredState` records whether `quantity` is a raw or a cooked weight, and the yield factor is applied only when a cooked weight is wanted from a raw base. A recipe `quantityG` is always a pre-cooking weight. The generated `id` is excluded from these vectors because it embeds a timestamp."
+    },
+    {
+      "suite": "unpack-recipe",
+      "file": "unpack-recipe.json",
+      "cases": 2,
+      "description": "Flattens a recipe suggestion into one AddItem per component, carrying the recipe's cooking method and per-person weight as explicit overrides. Order is preserved. A recipe with no components gives an empty list, never an error."
+    },
+    {
+      "suite": "apply-method-change",
+      "file": "apply-method-change.json",
+      "cases": 8,
+      "description": "Re-derives the weight when the user changes cooking method. Branch order matters and is part of the contract: (1) target \"raw\" — from a portion factor recompute base * factor, else invert the current yield if the weight was cooked, else leave it alone; (2) a portion factor is present — recompute from the base and force the result cooked; (3) the weight was cooked — convert through the raw equivalent, leaving measuredState untouched; (4) otherwise only the method changes. `id` is supplied in the input here, so it is asserted too."
+    },
+    {
+      "suite": "switch-measured-state",
+      "file": "switch-measured-state.json",
+      "cases": 6,
+      "description": "Reinterprets a weight as a pre- or post-cooking measurement, converting it so it still describes the same food: multiply by the yield going to \"cooked\", divide coming back to \"raw\" — the same direction convention as apply-method-change branch 1, so the two compose without a sign error. A row already in the requested state is returned untouched rather than converted twice, which is load-bearing: a toggle re-emitting its current value is normal, and without the guard every such event would rescale the weight again. The yield comes from resolveYieldFactor, so a raw method and absent Knowledge data both give factor 1."
+    }
+  ]
+}

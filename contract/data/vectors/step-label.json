@@ -1,0 +1,104 @@
+{
+  "suite": "step-label",
+  "description": "Label for one scale step. A factor step carries its own label verbatim. A unit step renders \"<count> <unit>\", the count replaced by a typographic fraction for 0.25 / 0.33 / 0.5 / 0.75 and the unit pluralised. The fraction table is keyed on the count, not on the factor.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "factor-step-uses-its-own-label",
+      "why": "Factor steps are pre-labelled, so no formatting is applied.",
+      "input": {
+        "step": {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "½"
+        }
+      },
+      "expected": "½"
+    },
+    {
+      "id": "unit-count-one",
+      "why": "A whole count renders as a digit, not a fraction.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 1
+        }
+      },
+      "expected": "1 carotte"
+    },
+    {
+      "id": "unit-count-two-pluralises",
+      "why": "Ties this suite to the plural rule: the unit label is pluralised by the same function, not by a second copy of the logic living here.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 2
+        }
+      },
+      "expected": "2 carottes"
+    },
+    {
+      "id": "unit-count-half-uses-a-fraction",
+      "why": "\"½ carotte\" reads better than \"0,5 carotte\" on a button.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.5
+        }
+      },
+      "expected": "½ carotte"
+    },
+    {
+      "id": "unit-count-quarter-uses-a-fraction",
+      "why": "The other fraction reachable from the anchor ladder.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.25
+        }
+      },
+      "expected": "¼ carotte"
+    },
+    {
+      "id": "unit-count-three",
+      "why": "A count with no fraction entry falls back to the digit.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labelFr": "carotte",
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 3
+        }
+      },
+      "expected": "3 carottes"
+    }
+  ]
+}
