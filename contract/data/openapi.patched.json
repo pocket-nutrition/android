@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenFood API",
+    "title": "Pocket Nutrition API",
     "description": "Predicts cooked nutritional profiles from raw ingredients and cooking methods. Results are served from an Elasticsearch cache on repeat queries; cache misses are forwarded to the pocket-nutrition-ml prediction service.",
     "version": "2.5.1"
   },
