@@ -110,7 +110,7 @@
     }
   },
   "about": {
-    "$comment": "The about/licences screen. Wholly `app`: the sandbox is a hosted prototype with no store listing, no licence obligation to its visitors and nothing to attribute in-product. Three obligations meet on this one screen — MPL-2.0 §3.2 (a recipient of the executable must be told their rights), the ODbL attribution the Open Food Facts data carries, and the reachable privacy-policy URL both consoles demand before a listing can be submitted. The wording below is a SUMMARY of website.pocketnutrition.org/privacy.html and must not outrun it: if the policy and this screen ever disagree, the app is making a privacy claim nobody reviewed.",
+    "$comment": "The about/licences screen. Wholly `app`: the sandbox is a hosted prototype with no store listing, no licence obligation to its visitors and nothing to attribute in-product. Three obligations meet on this one screen — MPL-2.0 §3.2 (a recipient of the executable must be told their rights), the ODbL attribution the Open Food Facts data carries, and the reachable privacy-policy URL both consoles demand before a listing can be submitted. The wording below is a SUMMARY of pocketnutrition.org/privacy.html and must not outrun it: if the policy and this screen ever disagree, the app is making a privacy claim nobody reviewed.",
     "title": {
       "fr": "À propos",
       "en": "About",

@@ -186,7 +186,7 @@ private fun LinkRow(label: String, url: String) {
 }
 
 /** The same URL the Play listing declares. */
-private const val PRIVACY_POLICY_URL = "https://website.pocketnutrition.org/privacy.html"
+private const val PRIVACY_POLICY_URL = "https://pocketnutrition.org/privacy.html"
 
 private const val SOURCE_URL = "https://github.com/pocket-nutrition/android"
 
