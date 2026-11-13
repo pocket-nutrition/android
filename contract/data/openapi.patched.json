@@ -1823,7 +1823,7 @@
     }
   },
   "x-pn-overlay": {
-    "contractsVersion": "2.3.1",
+    "contractsVersion": "2.6.0",
     "overlayVersion": 1,
     "upstreamContractVersion": "2.5.1",
     "generatedBy": "scripts/patch_spec.py",
