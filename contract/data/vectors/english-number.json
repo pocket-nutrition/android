@@ -1,0 +1,55 @@
+{
+  "suite": "english-number",
+  "description": "English decimal point — the mirror image of french-number: stringify, no comma substitution. Do NOT implement this with a locale-aware formatter, for the same reason as french-number: those add thousands separators and vary by platform and OS version. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "one-decimal",
+      "why": "The common case — the dot stays a dot, unlike french-number's comma substitution.",
+      "input": {
+        "value": 1.1
+      },
+      "expected": "1.1"
+    },
+    {
+      "id": "integer-has-no-decimal",
+      "why": "An integer renders \"2\", not \"2.0\". A fixed-one-decimal formatter fails here, same as in French.",
+      "input": {
+        "value": 2
+      },
+      "expected": "2"
+    },
+    {
+      "id": "below-one-keeps-leading-zero",
+      "why": "Renders \"0.5\" and not \".5\". Some locale formatters drop the leading zero for values below one, which is why this is pinned rather than assumed.",
+      "input": {
+        "value": 0.5
+      },
+      "expected": "0.5"
+    },
+    {
+      "id": "rounding-tie-result",
+      "why": "The value produced by the 80 g / 64 g portion tie, so this suite joins up with describe-quantity-en the same way french-number does with describe-quantity.",
+      "input": {
+        "value": 1.3
+      },
+      "expected": "1.3"
+    },
+    {
+      "id": "two-digit-integer",
+      "why": "No thousands separator and no space; a locale formatter may insert one.",
+      "input": {
+        "value": 10
+      },
+      "expected": "10"
+    },
+    {
+      "id": "zero",
+      "why": "Zero counts as an integer, so it renders \"0\" and not \"0.0\". Reachable whenever an ingredient is scaled all the way down.",
+      "input": {
+        "value": 0
+      },
+      "expected": "0"
+    }
+  ]
+}

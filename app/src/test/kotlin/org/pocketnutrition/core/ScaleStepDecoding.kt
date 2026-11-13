@@ -3,8 +3,10 @@ package org.pocketnutrition.core
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -18,11 +20,29 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 object ScaleStepDecoding {
 
+    fun localizedText(element: JsonElement): LocalizedText {
+        val raw = element.jsonObject
+        return LocalizedText(
+            lang = requireNotNull(raw["lang"]).jsonPrimitive.content,
+            text = requireNotNull(raw["text"]).jsonPrimitive.content,
+        )
+    }
+
+    /**
+     * Tolerant of the same two shapes [ServingUnitSerializer] is — see that serializer's comment.
+     * The pre-2.0.0 `build-anchors`/`shortcut-profile`/`step-label`/`step-raw-weight` suites still
+     * carry `labelFr`/`labelEn`; the `-en` siblings added in 2.0.0 carry the generic `labels` array.
+     */
     fun servingUnit(element: JsonElement): ServingUnit {
         val raw = element.jsonObject
+        val labels = raw["labels"]?.jsonArray?.map(::localizedText)
+            ?: buildList {
+                raw["labelFr"]?.jsonPrimitive?.contentOrNull?.let { add(LocalizedText("fr", it)) }
+                raw["labelEn"]?.jsonPrimitive?.contentOrNull?.let { add(LocalizedText("en", it)) }
+            }
         return ServingUnit(
             unit = requireNotNull(raw["unit"]).jsonPrimitive.content,
-            labelFr = requireNotNull(raw["labelFr"]).jsonPrimitive.content,
+            labels = labels,
             volumeMl = requireNotNull(raw["volumeMl"]).jsonPrimitive.double,
             grams = requireNotNull(raw["grams"]).jsonPrimitive.double,
         )

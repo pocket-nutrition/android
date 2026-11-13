@@ -90,11 +90,27 @@ RUN yes | sdkmanager --licenses > /dev/null \
 
 # A writable Gradle home so a non-root CI user can still populate the dependency cache. Warming it
 # further would need the project's dependency graph, which belongs to the build job, not the image.
-RUN mkdir -p "${GRADLE_USER_HOME}" && chmod -R 0777 "${GRADLE_USER_HOME}"
+RUN mkdir -p "${GRADLE_USER_HOME}"
+
+# THE GRADLE DISTRIBUTION IS BAKED IN, for the same reason as the SDK. Every job used to download it
+# from services.gradle.org through the wrapper, and on 2026-11-03 that download timed out on three runs
+# in a row (at 10 s, then at 60 s) while the build job of the same run fetched it fine: a flaky network
+# failing jobs before a line compiled. Running the project's own wrapper here fills
+# ${GRADLE_USER_HOME}/wrapper/dists with exactly the distribution and checksum it pins, under the
+# directory name the wrapper derives from the URL, which a hand-placed zip would have to reproduce.
+# ci-image.yml rebuilds the image when gradle-wrapper.properties changes, so a Gradle bump is picked up.
+COPY gradlew /tmp/gradle-prefetch/gradlew
+COPY gradle/wrapper /tmp/gradle-prefetch/gradle/wrapper
+RUN cd /tmp/gradle-prefetch \
+    && ./gradlew --version --no-daemon \
+    && rm -rf /tmp/gradle-prefetch "${GRADLE_USER_HOME}/daemon" "${GRADLE_USER_HOME}/native"
+
+RUN chmod -R 0777 "${GRADLE_USER_HOME}"
 
 # Fail the image build rather than the first pipeline run if a component did not land.
 RUN test -d "${ANDROID_HOME}/platforms/${PLATFORM}" \
     && test -x "${ANDROID_HOME}/build-tools/${BUILD_TOOLS}/aapt2" \
+    && ls -d "${GRADLE_USER_HOME}"/wrapper/dists/gradle-*-bin/*/gradle-* \
     && java -version \
     && node --version \
-    && echo "ci-android ready: JDK 21, Node ${NODE_VERSION}, platform ${PLATFORM}, build-tools ${BUILD_TOOLS}"
+    && echo "ci-android ready: JDK 21, Node ${NODE_VERSION}, platform ${PLATFORM}, build-tools ${BUILD_TOOLS}, Gradle prefetched"

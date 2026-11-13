@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: MPL-2.0
+name: CI
+
+# Pull requests (including from forks) run the gates with a read-only token and no secrets.
+# A push to main runs the same gates and then mints a CalVer release (vYYYY.M.N).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  # Kept in step with .ci/Dockerfile, which documents why each is pinned.
+  ANDROID_PLATFORM: "android-37.0"
+  ANDROID_BUILD_TOOLS: "37.0.0"
+
+jobs:
+  # 1. The contract this app was reviewed against is the contract it builds against.
+  #    First because it takes seconds, and drift here invalidates everything after it.
+  contracts:
+    name: Contract pin
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          path: pocket-nutrition-android
+
+      # Checked out beside this repo, which is the layout sync-contracts.sh expects by default.
+      - name: Checkout pocket-nutrition/contracts
+        uses: actions/checkout@v5
+        with:
+          repository: pocket-nutrition/contracts
+          path: pocket-nutrition-contracts
+
+      # Fails when the vendored contract/ differs from the pinned CONTRACTS_VERSION, or when the
+      # contracts repo is not at that version.
+      - name: Vendored contract matches the pinned version
+        run: ./scripts/sync-contracts.sh --verify
+        working-directory: pocket-nutrition-android
+
+  # 2. Unit tests, including the shared behavioural corpus. Separate from the build so a behavioural
+  #    failure is distinguishable at a glance from a compile failure.
+  test:
+    name: Unit tests
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/
+          retention-days: 14
+
+  # 3. Compile and lint. warningsAsErrors is on in both Kotlin and lint, so this is a real gate.
+  build:
+    name: Build and lint
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      - name: Assemble debug
+        run: ./gradlew assembleDebug
+
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      # Exercise R8 on every run, not only on release: R8 stripping a serializer that
+      # kotlinx.serialization needs is a runtime crash, not a build error. No keystore here, so the
+      # output is unsigned, which is fine: this step is about whether the code survives minification.
+      - name: Bundle release (exercises R8; unsigned)
+        run: ./gradlew bundleRelease
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          retention-days: 14
+
+  # The single required status check. Branch protection names this job and nothing else, so adding
+  # or renaming a gate above never needs a settings change. Skipped needs are fine; failed or
+  # cancelled ones are not.
+  ci-success:
+    name: ci-success
+    if: always()
+    needs: [contracts, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any gate failed or was cancelled
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "gate results: ${RESULTS}"
+          case " ${RESULTS} " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac
+
+  # 4. Every commit on main becomes a release. Debug-signed APK only: release signing is
+  #    deliberately not set up here, so no keystore or secret is involved.
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [contracts, test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-android
+
+      # Reserves vYYYY.M.N on this commit; the tag is the version's single source of truth.
+      - name: Reserve CalVer tag
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(.github/scripts/calver-reserve.sh)"
+          IFS=. read -r year month patch <<< "${version}"
+          if [ "${patch}" -gt 99 ]; then
+            echo "::error::more than 99 releases this month: versionCode (YYYYMMNN) cannot represent ${version}"
+            exit 1
+          fi
+          code="$(printf '%d%02d%02d' "${year}" "${month}" "${patch}")"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "code=${code}" >> "${GITHUB_OUTPUT}"
+          echo "reserved v${version} (versionCode ${code})"
+
+      - name: Build debug APK
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: ./gradlew assembleDebug "-PversionName=${VERSION}" "-PversionCode=${CODE}"
+
+      - name: Create release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          apk="pocket-nutrition-android-${VERSION}-debug.apk"
+          cp app/build/outputs/apk/debug/*-debug.apk "${apk}"
+          sha256sum "${apk}" > "${apk}.sha256"
+          gh release create "v${VERSION}" --verify-tag --generate-notes --title "v${VERSION}" \
+            "${apk}" "${apk}.sha256"
+
+      # A tag without a release is clutter, and the number would be skipped for nothing.
+      - name: Delete the reserved tag on failure
+        if: failure() && steps.release.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          [ -n "${VERSION}" ] || exit 0
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" || true

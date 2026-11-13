@@ -1,0 +1,187 @@
+{
+  "suite": "describe-quantity-en",
+  "description": "The English wording of the describe-quantity suite. Same three branches as describe-quantity (on-anchor, item/portion descriptor, grams alone), composed from english-number and english-plural instead of their French counterparts. Two deliberate divergences from the French suite: (1) the rounding-tie case now shows a dot, not a comma; (2) the item-descriptor cases use different counts than the French suite (75 g / 160 g rather than 81 g / 160 g) so the \"singular\" case actually lands on exactly 1 — 1.1 stays singular in French (count < 2) but would pluralise in English (count != 1), so testing English's own singular boundary needs a count that rounds to exactly 1. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "on-anchor-exact",
+      "why": "Landing exactly on an anchor shows its label, with the exact weight underneath.",
+      "input": {
+        "currentG": 64,
+        "anchors": [
+          { "label": "¼", "grams": 16 },
+          { "label": "Small", "grams": 32 },
+          { "label": "1 serving", "grams": 64 },
+          { "label": "Large", "grams": 96 },
+          { "label": "Double", "grams": 128 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "1 serving", "secondary": "64g" }
+    },
+    {
+      "id": "on-anchor-within-4-percent",
+      "why": "Pins the tolerance window: 66 g is 3.1 % from the 64 g anchor, so the clean label is kept rather than degrading to a ratio the moment the user nudges the value.",
+      "input": {
+        "currentG": 66,
+        "anchors": [
+          { "label": "¼", "grams": 16 },
+          { "label": "Small", "grams": 32 },
+          { "label": "1 serving", "grams": 64 },
+          { "label": "Large", "grams": 96 },
+          { "label": "Double", "grams": 128 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "1 serving", "secondary": "66g" }
+    },
+    {
+      "id": "anchor-tolerance-has-a-2g-floor",
+      "why": "Pins max(2, grams * 0.04). For a 16 g anchor, 4 % is 0.64 g, which would make the label practically unreachable; the 2 g floor keeps small portions usable.",
+      "input": {
+        "currentG": 18,
+        "anchors": [
+          { "label": "¼", "grams": 16 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "¼", "secondary": "18g" }
+    },
+    {
+      "id": "nearest-anchor-wins",
+      "why": "When two anchors both fall inside tolerance the closer one wins, not the first one scanned.",
+      "input": {
+        "currentG": 64,
+        "anchors": [
+          { "label": "Small", "grams": 63 },
+          { "label": "1 serving", "grams": 66 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "Small", "secondary": "64g" }
+    },
+    {
+      "id": "between-anchors-portion-descriptor",
+      "why": "THE ROUNDING TIE, English side: 80/64 = 1.25 exactly, so round1 evaluates roundHalfUp(12.5)/10 = 1.3 — a dot, not french-number's comma — and 1.3 pluralises in English (unlike French's \"1,3 portion\", which stays singular under French's count>=2 rule).",
+      "input": {
+        "currentG": 80,
+        "anchors": [
+          { "label": "¼", "grams": 16 },
+          { "label": "Small", "grams": 32 },
+          { "label": "1 serving", "grams": 64 },
+          { "label": "Large", "grams": 96 },
+          { "label": "Double", "grams": 128 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "≈ 1.3 servings", "secondary": "80g" }
+    },
+    {
+      "id": "between-anchors-snaps-to-named-descriptor",
+      "why": "Pins the 8 % named window: 100 g is 1.5625 portions, 4.2 % from Large, so the headline reads \"≈ Large\" rather than a bare ratio.",
+      "input": {
+        "currentG": 100,
+        "anchors": [
+          { "label": "¼", "grams": 16 },
+          { "label": "Small", "grams": 32 },
+          { "label": "1 serving", "grams": 64 },
+          { "label": "Large", "grams": 96 },
+          { "label": "Double", "grams": 128 }
+        ],
+        "ctx": { "portionG": 64, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "≈ Large", "secondary": "100g" }
+    },
+    {
+      "id": "item-descriptor-singular",
+      "why": "English's own singular boundary is exactly 1, not \"below 2\" like French — 75/74 rounds to 1.0, which is the count that must stay singular. No anchors: keeping this case independent of the anchor-tolerance window keeps the arithmetic simple.",
+      "input": {
+        "currentG": 75,
+        "anchors": [],
+        "ctx": {
+          "servingMode": "item",
+          "itemUnitG": 74,
+          "itemLabel": "carrot",
+          "portionG": 74,
+          "displayUnit": "g"
+        },
+        "lang": "en"
+      },
+      "expected": { "primary": "≈ 1 carrot", "secondary": "75g" }
+    },
+    {
+      "id": "item-descriptor-plural",
+      "why": "At any count but exactly 1 the label pluralises, so english-plural is reachable from this path too, not only from step-label-en.",
+      "input": {
+        "currentG": 160,
+        "anchors": [],
+        "ctx": {
+          "servingMode": "item",
+          "itemUnitG": 74,
+          "itemLabel": "carrot",
+          "portionG": 74,
+          "displayUnit": "g"
+        },
+        "lang": "en"
+      },
+      "expected": { "primary": "≈ 2.2 carrots", "secondary": "160g" }
+    },
+    {
+      "id": "item-sliver-falls-through-to-grams",
+      "why": "Below a quarter of an item, \"≈ 0.1 carrot\" is noise, so the branch is skipped and grams are shown alone. It does NOT fall back to the portion-ratio branch — that is an else-if on the item branch.",
+      "input": {
+        "currentG": 10,
+        "anchors": [],
+        "ctx": {
+          "itemUnitG": 74,
+          "itemLabel": "carrot",
+          "portionG": 74,
+          "displayUnit": "g"
+        },
+        "lang": "en"
+      },
+      "expected": { "primary": "10g", "secondary": "" }
+    },
+    {
+      "id": "millilitres-use-a-space-and-capital-L",
+      "why": "Volume foods render \"270 mL\" — space, capital L — while grams render \"64g\" with no space; language-independent, since formatWeight's own literals never change with the active language. 270/246 = 1.0975, rounds to 1.1, which pluralises in English.",
+      "input": {
+        "currentG": 270,
+        "anchors": [
+          { "label": "1 serving", "grams": 246 }
+        ],
+        "ctx": { "portionG": 246, "displayUnit": "ml" },
+        "lang": "en"
+      },
+      "expected": { "primary": "≈ 1.1 servings", "secondary": "270 mL" }
+    },
+    {
+      "id": "sub-gram-renders-less-than-one",
+      "why": "A weight under 1 g must not render \"0g\" — language-independent, the same guard as the French suite.",
+      "input": {
+        "currentG": 0.4,
+        "anchors": [],
+        "ctx": { "portionG": 0, "displayUnit": "g" },
+        "lang": "en"
+      },
+      "expected": { "primary": "< 1g", "secondary": "" }
+    },
+    {
+      "id": "sub-millilitre-renders-less-than-one",
+      "why": "The same guard on the volume side, where the suffix differs.",
+      "input": {
+        "currentG": 0.5,
+        "anchors": [],
+        "ctx": { "portionG": 0, "displayUnit": "ml" },
+        "lang": "en"
+      },
+      "expected": { "primary": "< 1 mL", "secondary": "" }
+    }
+  ]
+}

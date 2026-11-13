@@ -2,31 +2,51 @@
 <!--
   SPDX-License-Identifier: MPL-2.0
 
-  INTERNET and CAMERA, each added in the same change as the code that needs it — as this comment's
+  INTERNET, CAMERA and RECORD_AUDIO, each added in the same change as the code that needs it — as this comment's
   previous revision required, and the same rule this revision follows.
 
   INTERNET justification: the app calls GET /ingredients/search, GET /ingredients/barcode/{ean13} and
-  POST /nutrition on https://api.pocketnutrition.org. Nothing else leaves the device; the food diary
-  is a local JSON file and is never uploaded.
+  POST /nutrition on https://api.pocketnutrition.org. The food diary is a local JSON file; it is uploaded
+  only if the user links a cloud vault account (Settings > Cloud vault), and then only end-to-end encrypted
+  on the phone (libsodium) to the vault server they chose, https://vault.pocketnutrition.org by default.
+  The same holds for the daily-targets profile, targets and weight records. The vault server never sees a
+  key or a passphrase, only ciphertext and a login hash derived from the passphrase.
 
-  CAMERA justification: live barcode scanning (CameraX + on-device ML Kit) so a product's EAN-13 can
-  be looked up without typing it. No photo or video is ever stored, uploaded, or requested from the
-  user — only the decoded digits leave BarcodeScannerScreen, going straight into the same
-  lookupBarcode() call a typed search would make.
+  CAMERA justification: (1) live barcode scanning (CameraX + on-device ZXing) so a product's EAN-13 can
+  be looked up without typing it; only the decoded digits leave BarcodeScannerScreen, going straight
+  into the same lookupBarcode() call a typed search would make. (2) Meal photos (the camera beside the
+  meal builder's search field): the system camera app writes one picture to a scratch file in the cache, shared
+  through the FileProvider below and deleted once encoded. The permission is needed even though the
+  system camera takes the picture, because an app that declares CAMERA may not launch it without the
+  grant. Meal photos, taken or chosen through the system photo picker (no storage permission), are
+  re-encoded on the phone (no EXIF or location, longest side 1024 px), kept in the same private folder
+  as voice clips and uploaded to the same recognition server, under the same rules as the clips below.
+
+  RECORD_AUDIO justification: dictating a meal (the microphone beside the meal builder's search field).
+  The user taps the microphone and says what they ate; the clip (AAC/m4a, 60 s at most) is written to the app's private storage and
+  uploaded to the voice-recognition server the user configured in Settings. It is kept on the phone
+  only until the result has been received (7 days at most) and is never shared otherwise. Nothing is
+  recorded unless the user taps the microphone, and recording stops when the screen is left.
 
   Not requested, and each absence is deliberate: ACCESS_NETWORK_STATE (a failed request already tells
-  us we are offline, and the copy for it exists), and any storage permission (the journal lives in the
+  us we are offline, and the copy for it exists; the voice outbox retries on that same signal), and any storage permission (the journal lives in the
   app's own filesDir; the camera preview is never persisted to disk).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Declared but not required: scanning is one input method among several (typed search still
          works), so a camera-less device should still see this app in its Play Store listing rather
          than being filtered out. -->
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <!-- Declared but not required: voice capture is one input method among several (typed search and
+         barcode scanning still work), so a device without a microphone should still see this app in
+         its Play Store listing rather than being filtered out. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!--
       Backup is enabled but the journal is excluded, and that combination is deliberate.
@@ -52,9 +72,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PocketNutrition">
 
+        <!-- Lets the system camera write a meal photo into the app's cache (meal-photo/ only). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.camera"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/camera_paths" />
+        </provider>
+
+        <!-- configChanges: Compose re-lays the screen out itself, and recreating the activity on rotation
+             would discard the in-progress screen state (a meal being composed from a voice capture, a
+             recording in progress). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|uiMode|density|fontScale"
             android:theme="@style/Theme.PocketNutrition">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

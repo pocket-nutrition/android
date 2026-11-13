@@ -2,6 +2,7 @@
 package org.pocketnutrition.api
 
 import org.pocketnutrition.core.IngredientSuggestion
+import org.pocketnutrition.core.LocalizedText
 import org.pocketnutrition.core.ServingUnit
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -13,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.pocketnutrition.core.nutrientTotals
 
 // The two endpoints the app needs, and the shapes they exchange. Transcribed from the vendored
 // contract/data/openapi.patched.json rather than from a live response, so a field the server stops
@@ -44,8 +46,9 @@ data class FoodItemRequest(
 /**
  * One item of a `POST /nutrition` response.
  *
- * Only the fields the results screen renders. Adding another nutrient is a one-line change; carrying
- * all thirty unused would obscure which ones the product actually shows.
+ * Carries all 24 nutrient fields of `NutritionalProfileResponse` so a saved meal keeps everything the
+ * engine computed (see [nutrients]); the results screen still renders only the macros. A nutrient the
+ * server has no figure for is null, never 0.
  */
 @Serializable
 data class NutritionalProfile(
@@ -60,7 +63,63 @@ data class NutritionalProfile(
     val carbohydratesG: Double,
     val fiberG: Double? = null,
     val sugarsG: Double? = null,
-)
+    val waterG: Double? = null,
+    val calciumMg: Double? = null,
+    val ironMg: Double? = null,
+    val magnesiumMg: Double? = null,
+    val sodiumMg: Double? = null,
+    val vitaminCMg: Double? = null,
+    val saturatedFatG: Double? = null,
+    val monounsaturatedFatG: Double? = null,
+    val polyunsaturatedFatG: Double? = null,
+    val cholesterolMg: Double? = null,
+    val potassiumMg: Double? = null,
+    val phosphorusMg: Double? = null,
+    val zincMg: Double? = null,
+    val vitaminAUg: Double? = null,
+    val vitaminDUg: Double? = null,
+    val vitaminB6Mg: Double? = null,
+    val vitaminB12Ug: Double? = null,
+    val niacinMg: Double? = null,
+    /**
+     * False when the server could not compute this item (source "unavailable"): its macros are
+     * placeholder zeros and every other nutrient is null. Such an item's nutrients are unknown, not 0,
+     * so it contributes nothing to any total. Defaults to true for a server that predates the field.
+     */
+    val available: Boolean = true,
+    /**
+     * Client-side only, never in a server response: a quick-add row (an energy figure the person typed).
+     * Its macros are placeholders; every nutrient but energy is unknown, which [nutrients] reflects.
+     */
+    val isQuickAdd: Boolean = false,
+) {
+    /** Every known nutrient of this item, keyed by API field name; unknown ones are absent. */
+    fun nutrients(): Map<String, Double> {
+        if (!available) return emptyMap()
+        if (isQuickAdd) return nutrientTotals(mapOf("energyKcal" to energyKcal))
+        return nutrientTotals(
+            mapOf(
+                "energyKcal" to energyKcal, "proteinG" to proteinG, "fatG" to fatG,
+                "carbohydratesG" to carbohydratesG, "fiberG" to fiberG, "waterG" to waterG,
+                "sugarsG" to sugarsG, "calciumMg" to calciumMg, "ironMg" to ironMg,
+                "magnesiumMg" to magnesiumMg, "sodiumMg" to sodiumMg, "vitaminCMg" to vitaminCMg,
+                "saturatedFatG" to saturatedFatG, "monounsaturatedFatG" to monounsaturatedFatG,
+                "polyunsaturatedFatG" to polyunsaturatedFatG, "cholesterolMg" to cholesterolMg,
+                "potassiumMg" to potassiumMg, "phosphorusMg" to phosphorusMg, "zincMg" to zincMg,
+                "vitaminAUg" to vitaminAUg, "vitaminDUg" to vitaminDUg, "vitaminB6Mg" to vitaminB6Mg,
+                "vitaminB12Ug" to vitaminB12Ug, "niacinMg" to niacinMg,
+            ),
+        )
+    }
+
+    companion object {
+        /** The synthetic answer for a quick-add row: energy only, never sent to the server. */
+        fun quickAdd(label: String, kcal: Double) = NutritionalProfile(
+            name = label, quantity = kcal, unit = "kcal", cookingMethod = "", measuredState = "",
+            energyKcal = kcal, proteinG = 0.0, fatG = 0.0, carbohydratesG = 0.0, isQuickAdd = true,
+        )
+    }
+}
 
 /** One correction inside a `POST /feedback` request body. */
 @Serializable
@@ -103,14 +162,16 @@ data class ReferenceNutrition(
  * A `GET /ingredients/{id}` response: the knowledge-base detail behind one ingredient or product —
  * the current known values the feedback form shows beside a correction row. Only the fields the
  * feedback sheet reads are kept; see [ReferenceNutrition] for the same rule.
+ *
+ * [names] replaced the old fixed `nameFr`/`nameEn` fields in contract 2.0.0 — a generic
+ * `List<LocalizedText>` rather than a field pair, so a third language never needs another field
+ * added here. Resolve a specific language with `pickLocalized(names, preferring = ...)`.
  */
 @Serializable
 data class IngredientDetail(
     val ingredientId: String,
-    val nameFr: String? = null,
-    val nameEn: String? = null,
-    val aliasesFr: List<String> = emptyList(),
-    val aliasesEn: List<String> = emptyList(),
+    val names: List<LocalizedText> = emptyList(),
+    val aliases: List<LocalizedText> = emptyList(),
     val foodGroup: String? = null,
     val referenceWeightG: Double? = null,
     val displayUnit: String? = null,
@@ -139,10 +200,19 @@ sealed class ApiException(val frenchMessage: String) : Exception(frenchMessage) 
 object PocketNutritionApi {
 
     /**
-     * The public API. No staging host and no build flavour: there is one deployment, and a base URL
-     * that can be pointed elsewhere invites shipping a build pointed at the wrong place.
+     * The official Pocket Nutrition API, used unless a contributor points the app at their own
+     * server via [ApiSettings] (see `AboutScreen`'s "Serveur" section). No build flavour: the
+     * override is entirely a runtime setting in the shipped app, which is what makes a separate
+     * staging-pointed build unnecessary.
      */
-    private const val BASE_URL = "https://api.pocketnutrition.org"
+    const val DEFAULT_BASE_URL = "https://api.pocketnutrition.org"
+
+    /**
+     * What every request actually goes to. Read fresh at each call site rather than cached — a change
+     * made from `AboutScreen` must take effect on the very next request, not after the app relaunches.
+     */
+    private val baseUrl: String
+        get() = ApiSettings.baseUrl
 
     /** A phone on a weak connection should get a retryable error, not a hang. */
     private const val TIMEOUT_MS = 15_000
@@ -173,12 +243,17 @@ object PocketNutritionApi {
     /**
      * `GET /ingredients/search`. A blank query returns an empty result without calling the server: the
      * field fires as the user types, and `q` is required by the spec.
+     *
+     * `lang` is an explicit parameter, read by the caller from [org.pocketnutrition.api.LanguageSettings]
+     * before this suspend function is entered, rather than read here — this function runs its network
+     * call on [Dispatchers.IO] via [requestWithHeaders], and passing a plain `String` in avoids any
+     * question about reading mutable settings state from a background thread.
      */
-    suspend fun search(query: String, limit: Int = 12): SearchResponse {
+    suspend fun search(query: String, lang: String, limit: Int = 12): SearchResponse {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return SearchResponse(emptyList(), segmentCount = 1)
         val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
-        val url = "$BASE_URL/ingredients/search?q=$encoded&lang=fr&limit=$limit"
+        val url = "$baseUrl/ingredients/search?q=$encoded&lang=$lang&limit=$limit"
         val raw = requestWithHeaders("GET", url, body = null, wantedHeaders = setOf(SEGMENT_COUNT_HEADER))
         return SearchResponse(
             rows = json.decodeFromString(raw.body),
@@ -192,7 +267,7 @@ object PocketNutritionApi {
      */
     suspend fun analyse(items: List<FoodItemRequest>): List<NutritionalProfile> {
         val body = json.encodeToString(items)
-        return json.decodeFromString(request("POST", "$BASE_URL/nutrition", body))
+        return json.decodeFromString(request("POST", "$baseUrl/nutrition", body))
     }
 
     /**
@@ -200,7 +275,7 @@ object PocketNutritionApi {
      * nothing here reads, so the call reports success or throws rather than decoding a value.
      */
     suspend fun submitFeedback(feedback: FeedbackRequest) {
-        request("POST", "$BASE_URL/feedback", json.encodeToString(feedback))
+        request("POST", "$baseUrl/feedback", json.encodeToString(feedback))
     }
 
     /**
@@ -218,9 +293,9 @@ object PocketNutritionApi {
      * required there, everything else is nullable/defaulted, and [json] already ignores the extra
      * `nutrition` field the response schema (`IngredientSuggestionWithNutrition`) adds on top.
      */
-    suspend fun lookupBarcode(ean13: String): IngredientSuggestion? = withContext(Dispatchers.IO) {
+    suspend fun lookupBarcode(ean13: String, lang: String): IngredientSuggestion? = withContext(Dispatchers.IO) {
         val encoded = java.net.URLEncoder.encode(ean13, "UTF-8")
-        val url = "$BASE_URL/ingredients/barcode/$encoded"
+        val url = "$baseUrl/ingredients/barcode/$encoded?lang=$lang"
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = TIMEOUT_MS
@@ -253,7 +328,7 @@ object PocketNutritionApi {
      */
     suspend fun ingredientDetail(id: String): IngredientDetail? = withContext(Dispatchers.IO) {
         val encoded = java.net.URLEncoder.encode(id, "UTF-8")
-        val url = "$BASE_URL/ingredients/$encoded"
+        val url = "$baseUrl/ingredients/$encoded"
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = TIMEOUT_MS

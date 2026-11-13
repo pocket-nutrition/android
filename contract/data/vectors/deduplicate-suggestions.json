@@ -570,6 +570,126 @@
       ]
     },
     {
+      "id": "three-english-results-move-ahead",
+      "why": "The mirror of three-french-results-move-ahead with preferLang set to \"en\" instead of \"fr\" — proves the language preference is a genuine parameter, not a value hardcoded to French anywhere in the implementation. Added for contract 2.0.0's language switcher.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "f1",
+            "label": "Pain",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "e1",
+            "label": "Bread",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "e2",
+            "label": "Baguette",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "e3",
+            "label": "Brioche",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "en"
+      },
+      "expected": [
+        {
+          "ingredientId": "e1",
+          "label": "Bread",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "e2",
+          "label": "Baguette",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "e3",
+          "label": "Brioche",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "f1",
+          "label": "Pain",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
+      "id": "two-english-results-keep-server-order",
+      "why": "The mirror of two-french-results-keep-server-order with preferLang set to \"en\" — below the MIN_SAME_LANG threshold, the server order is kept whole regardless of which language is preferred.",
+      "input": {
+        "items": [
+          {
+            "ingredientId": "e1",
+            "label": "Bread",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "f1",
+            "label": "Pain",
+            "lang": "fr",
+            "productType": "off_product",
+            "brand": null
+          },
+          {
+            "ingredientId": "e2",
+            "label": "Baguette",
+            "lang": "en",
+            "productType": "off_product",
+            "brand": null
+          }
+        ],
+        "preferLang": "en"
+      },
+      "expected": [
+        {
+          "ingredientId": "e1",
+          "label": "Bread",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "f1",
+          "label": "Pain",
+          "lang": "fr",
+          "productType": "off_product",
+          "brand": null
+        },
+        {
+          "ingredientId": "e2",
+          "label": "Baguette",
+          "lang": "en",
+          "productType": "off_product",
+          "brand": null
+        }
+      ]
+    },
+    {
       "id": "the-key-separator-cannot-be-forged-across-the-two-halves",
       "why": "The two halves are joined, so a naive concatenation would make label \"Jus\" + brand \"Orange\" collide with label \"Jus Orange\" + no brand. They are different products and must both survive. A port that keys on `label + brand` with no separator fails only here.",
       "input": {

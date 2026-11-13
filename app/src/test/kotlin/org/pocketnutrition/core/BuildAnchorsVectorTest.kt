@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Asserts [buildAnchors] against the `build-anchors` suite of the shared corpus.
+ * Asserts [buildAnchors] against the `build-anchors`/`build-anchors-en` suites of the shared corpus.
  *
  * The suite's real subject is the branch condition. Three of its six cases are the same weight ladder
  * reached three different ways — no serving units at all, an item unit the mode does not authorise,
@@ -18,51 +18,55 @@ import org.junit.Test
  */
 class BuildAnchorsVectorTest {
 
+    /** Covers both suites in one loop — the only difference is the `lang` a case asks for. */
     @Test
-    fun `every build-anchors vector holds`() {
-        val suite = VectorCorpus.load("build-anchors")
+    fun `every build-anchors and build-anchors-en vector holds`() {
+        listOf("build-anchors", "build-anchors-en").forEach { suiteName ->
+            val suite = VectorCorpus.load(suiteName)
 
-        assertEquals(
-            "build-anchors suite case count disagrees with index.json",
-            VectorCorpus.index().suites["build-anchors"],
-            suite.cases.size,
-        )
+            assertEquals(
+                "$suiteName suite case count disagrees with index.json",
+                VectorCorpus.index().suites[suiteName],
+                suite.cases.size,
+            )
 
-        val mismatches = suite.cases.mapNotNull { case ->
-            val basePortionG = requireNotNull(case.input["basePortionG"]).jsonPrimitive.double
-            val servingUnits = requireNotNull(case.input["servingUnits"]).jsonArray
-                .map(ScaleStepDecoding::servingUnit)
-            val servingMode = ScaleStepDecoding.nullableString(case.input["servingMode"])
-            val expected = case.expected.jsonArray.map(ScaleStepDecoding::step)
+            val mismatches = suite.cases.mapNotNull { case ->
+                val basePortionG = requireNotNull(case.input["basePortionG"]).jsonPrimitive.double
+                val servingUnits = requireNotNull(case.input["servingUnits"]).jsonArray
+                    .map(ScaleStepDecoding::servingUnit)
+                val servingMode = ScaleStepDecoding.nullableString(case.input["servingMode"])
+                val lang = case.input["lang"]?.jsonPrimitive?.content ?: "fr"
+                val expected = case.expected.jsonArray.map(ScaleStepDecoding::step)
 
-            val actual = buildAnchors(basePortionG, servingUnits, servingMode)
-            if (actual == expected) {
-                null
-            } else {
-                "build-anchors/${case.id}: got $actual, expected $expected — ${case.why}"
+                val actual = buildAnchors(basePortionG, servingUnits, servingMode, lang)
+                if (actual == expected) {
+                    null
+                } else {
+                    "$suiteName/${case.id}: got $actual, expected $expected — ${case.why}"
+                }
             }
+            assertEquals("$suiteName vectors that do not hold", emptyList<String>(), mismatches)
         }
-        assertEquals("build-anchors vectors that do not hold", emptyList<String>(), mismatches)
     }
 
     @Test
     fun `counting needs the item mode and an item unit, not either alone`() {
         // Either half alone is not enough, and the failure mode of getting this wrong is an empty
         // ladder rather than a visibly wrong one.
-        val carrot = ServingUnit("item", "carotte", 0.0, 74.0)
-        val spoon = ServingUnit("tablespoon", "c. à soupe", 15.0, 15.0)
+        val carrot = ServingUnit("item", listOf(LocalizedText("fr", "carotte")), 0.0, 74.0)
+        val spoon = ServingUnit("tablespoon", listOf(LocalizedText("fr", "c. à soupe")), 15.0, 15.0)
 
         assertTrue(
             "mode item + an item unit must count",
-            buildAnchors(74.0, listOf(carrot), "item").all { it is ScaleStep.UnitStep },
+            buildAnchors(74.0, listOf(carrot), "item", "fr").all { it is ScaleStep.UnitStep },
         )
         assertTrue(
             "mode item with nothing countable must fall back to factors",
-            buildAnchors(80.0, listOf(spoon), "item").all { it is ScaleStep.FactorStep },
+            buildAnchors(80.0, listOf(spoon), "item", "fr").all { it is ScaleStep.FactorStep },
         )
         assertTrue(
             "a countable unit the mode does not authorise must not be counted",
-            buildAnchors(74.0, listOf(carrot), "weight").all { it is ScaleStep.FactorStep },
+            buildAnchors(74.0, listOf(carrot), "weight", "fr").all { it is ScaleStep.FactorStep },
         )
     }
 
@@ -70,18 +74,18 @@ class BuildAnchorsVectorTest {
     fun `the drop thresholds are inclusive`() {
         // A 10 g item: the 0.5 rung resolves to exactly 5 g and is kept. Writing > rather than >=
         // loses it and breaks nothing else.
-        val tenGramItem = ServingUnit("item", "noix", 0.0, 10.0)
+        val tenGramItem = ServingUnit("item", listOf(LocalizedText("fr", "noix")), 0.0, 10.0)
         assertEquals(
             "0.5 x 10 g is exactly the 5 g floor and must survive",
             4,
-            buildAnchors(10.0, listOf(tenGramItem), "item").size,
+            buildAnchors(10.0, listOf(tenGramItem), "item", "fr").size,
         )
 
         // A 4 g base portion: the 0.25 rung resolves to exactly 1 g and is kept.
         assertEquals(
             "0.25 x 4 g is exactly the 1 g floor and must survive",
             5,
-            buildAnchors(4.0, emptyList(), null).size,
+            buildAnchors(4.0, emptyList(), null, "fr").size,
         )
     }
 }

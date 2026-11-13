@@ -69,8 +69,10 @@ private val SERVING_UNIT_OPTIONS = listOf(
 )
 
 /**
- * Lowercase forms, used in the feedback form only — distinct from [org.pocketnutrition.ui.Fr.cookingMethod]'s
- * capitalised picker labels.
+ * Lowercase, French forms, used in the feedback form only — distinct from
+ * `org.pocketnutrition.ui.Strings.active.cookingMethod`'s capitalised, language-aware picker labels.
+ * This feedback-hint list stays French-only regardless of the active app language, matching
+ * [feedbackCurrentValue]'s other hardcoded French strings.
  */
 private val COOKING_METHOD_OPTIONS = listOf(
     FeedbackOption("raw", "cru"),
@@ -234,7 +236,7 @@ fun feedbackCurrentValue(hint: String?, item: MealIngredient, detail: Ingredient
         "reference_weight" -> "${Math.round(item.basePortionG)} g"
         "display_unit" -> item.displayUnit
         "serving_units" ->
-            if (item.servingUnits.isEmpty()) "aucune" else item.servingUnits.joinToString(", ") { it.labelFr }
+            if (item.servingUnits.isEmpty()) "aucune" else item.servingUnits.joinToString(", ") { pickLocalized(it.labels, "fr") ?: it.unit }
         "raw_cooked" -> item.canEatRaw?.let { if (it) "cru possible" else "cuisson requise" }
         "cooking_method" -> item.cookingMethod
         "energy" -> detail?.referenceNutrition?.energyKcal?.let { "${Math.round(it)} kcal" }
@@ -242,8 +244,11 @@ fun feedbackCurrentValue(hint: String?, item: MealIngredient, detail: Ingredient
         "fat" -> detail?.referenceNutrition?.fatG?.let { "${Math.round(it)} g" }
         "carbs" -> detail?.referenceNutrition?.carbohydratesG?.let { "${Math.round(it)} g" }
         "fiber" -> detail?.referenceNutrition?.fiberG?.let { "${Math.round(it)} g" }
-        "name_fr" -> detail?.nameFr
-        "name_en" -> detail?.nameEn
+        // A strict lookup, not `pickLocalized`: this hint asks specifically "what French/English
+        // name does Knowledge have", and `pickLocalized`'s fallback would show the other language's
+        // name mislabelled — the opposite of what the hint is asking.
+        "name_fr" -> detail?.names?.firstOrNull { it.lang == "fr" }?.text
+        "name_en" -> detail?.names?.firstOrNull { it.lang == "en" }?.text
         "food_group" -> detail?.foodGroup
         else -> null
     }

@@ -69,6 +69,33 @@ class RowsForTest {
         assertEquals(emptyList<Any>(), rowsFor(RACLETTE.copy(recipeComponents = null)))
     }
 
+    @Test
+    fun `a recipe component that is an OFF product is locked to raw regardless of the recipe's method`() {
+        // The recipe assigns "grilled" to this component, same as CHEESE above — but an Open Food Facts
+        // product's nutrition is always the brand's own values (source off_direct), so the backend
+        // ignores the requested method and forces "raw". The row must reflect that, not the override.
+        val rows = rowsFor(
+            RACLETTE.copy(
+                recipeComponents = listOf(
+                    RecipeComponent(weightG = 100.0, cookingMethod = "grilled", ingredient = CHEESE_OFF),
+                ),
+            ),
+        ).associateBy { it.ingredientId }
+
+        val cheeseRow = rows.getValue("off:cheese123")
+        assertEquals("raw", cheeseRow.cookingMethod)
+        assertTrue("an OFF-sourced component row must be flagged industrial", cheeseRow.isIndustrialProduct)
+    }
+
+    @Test
+    fun `a non-recipe OFF product suggestion is locked to raw`() {
+        val rows = rowsFor(CHEESE_OFF)
+
+        assertEquals(1, rows.size)
+        assertEquals("raw", rows[0].cookingMethod)
+        assertTrue(rows[0].isIndustrialProduct)
+    }
+
     private companion object {
         val POTATO = IngredientSuggestion(
             ingredientId = "potato",
@@ -87,6 +114,17 @@ class RowsForTest {
             lang = "fr",
             productType = "ingredient",
             servingG = 60.0,
+            typicalState = "raw",
+            canEatRaw = true,
+            canEatCooked = true,
+        )
+
+        val CHEESE_OFF = IngredientSuggestion(
+            ingredientId = "off:cheese123",
+            label = "Fromage à raclette (marque)",
+            lang = "fr",
+            productType = "off_product",
+            servingG = 100.0,
             typicalState = "raw",
             canEatRaw = true,
             canEatCooked = true,

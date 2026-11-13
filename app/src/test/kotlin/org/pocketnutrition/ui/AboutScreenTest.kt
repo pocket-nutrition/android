@@ -44,7 +44,10 @@ class AboutScreenTest {
         "androidx." to "AndroidX",
         "org.jetbrains.kotlinx" to "kotlinx.serialization",
         "io.coil-kt" to "Coil",
-        "com.google.mlkit" to "ML Kit",
+        "com.google.zxing" to "ZXing",
+        // lazysodium-java (same group) is test-only; the Android flavour ships, with libsodium inside.
+        "com.goterl" to "Lazysodium",
+        "net.java.dev.jna" to "JNA",
     )
 
     /**

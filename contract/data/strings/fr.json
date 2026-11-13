@@ -1,9 +1,10 @@
 {
-  "$description": "French copy deck. Extracted VERBATIM from pocket-nutrition-sandbox — the product is French-only and all three clients must show identical wording, so this is the single source a porter copies from rather than retranslating. Keys are stable identifiers; only `fr` and `placeholder` values are translatable.",
+  "$description": "French/English copy deck. `fr` values are extracted VERBATIM from pocket-nutrition-sandbox — the sandbox itself stays French-only, so `fr` remains the single source a porter copies from rather than retranslating. `en` was added in contract 2.0.0 for the native apps' language switcher (the sandbox has no English UI and never gets an `en` value). Keys are stable identifiers; `fr`/`en`/`placeholder` values are translatable.",
   "$extensions": {
     "pn.source": "pocket-nutrition-sandbox/src (App.tsx, components/**, lib/feedbackCatalog.ts)",
-    "pn.interpolation": "Placeholders are {braced}. The sandbox builds these with template literals; a port must substitute the same named values. Where a count drives a plural the rule is stated in `plural` — note it is French (singular at 0 and 1, plural from 2), not English.",
+    "pn.interpolation": "Placeholders are {braced}. The sandbox builds these with template literals; a port must substitute the same named values. Where a count drives a plural the rule is stated in `plural` — that rule is stated for French (singular at 0 and 1, plural from 2). English pluralizes differently (singular only at exactly 1; 0 and every value above 1 are plural) — the `plural` field is not re-stated per language, so apply English's own rule when porting the `en` value, not the French one documented there.",
     "pn.scope": "Every entry carries `scope`: `shared` = reproduce in the native apps AND the sandbox; `sandbox` = specific to the web user-testing prototype and NOT to be ported; `app` = specific to the native apps and NOT present in the sandbox. The welcome screen and the API-gaps panel are researcher/developer surfaces, not product. The journal is the mirror case: the apps persist a local diary, the sandbox persists nothing, so that whole group is `app`.",
+    "pn.englishAddition": "Added in contract 2.0.0, alongside the API's move to a generic `LocalizedText` shape for ingredient data — the same underlying motivation: English stopped being a hypothetical and the apps needed a real language switcher. Only `shared` and `app` entries carry an `en` value; `sandbox` entries do not, and are not expected to — the sandbox is out of scope and stays French-only. `en` values are hand-translated against the `fr` value and its `context`, not machine-translated, so a `context` note applies equally to interpreting the `en` value.",
     "pn.apostropheInconsistency": "KNOWN DEFECT, recorded rather than silently fixed. The sandbox mixes the ASCII apostrophe (U+0027) with the typographic apostrophe (U+2019): compare mealBuilder.skipped.one (’) against welcome.step1 ('). French typography wants U+2019 throughout. Values below are verbatim so the inconsistency stays visible; normalising is a copy decision for the design owner, and once taken it should be applied to the sandbox and to this file in the same change.",
     "pn.emojiInconsistency": "KNOWN DEFECT. The `boiled` method is 🫧 in the method picker (IngredientCard.tsx) and 💧 in the lane header (cookingMeta.ts) — two glyphs for one method on one screen. tokens/cooking-palette.json must record exactly one."
   },
@@ -15,6 +16,7 @@
     },
     "brand": {
       "fr": "Pocket Nutrition",
+      "en": "Pocket Nutrition",
       "scope": "shared",
       "context": "Product name. Never translated."
     },
@@ -78,26 +80,31 @@
     "$comment": "The native apps keep a local food diary; the sandbox keeps nothing. There is therefore no sandbox wording to extract for this group — it was written for the apps and belongs to them.",
     "title": {
       "fr": "Mon journal",
+      "en": "My journal",
       "scope": "app",
       "context": "Home screen title. The app opens here, not on a meal builder."
     },
     "empty": {
       "fr": "Aucun repas enregistré pour le moment",
+      "en": "No meals logged yet",
       "scope": "app",
       "context": "Empty state, paired with a 🥗 glyph, as mealBuilder.empty is."
     },
     "add": {
       "fr": "Ajouter un repas",
+      "en": "Add a meal",
       "scope": "app",
       "context": "Primary action. Opens the meal builder."
     },
     "delete": {
       "fr": "Supprimer",
+      "en": "Delete",
       "scope": "app",
       "context": "Removes one saved meal. Destructive and unconfirmed — an entry is cheap to re-add."
     },
     "privacy": {
       "fr": "Vos repas sont enregistrés uniquement sur cet appareil.",
+      "en": "Your meals are stored only on this device.",
       "scope": "app",
       "context": "Shown on the empty state, where the user is deciding whether to start a diary at all. REQUIRED, not optional: welcome.privacy (\"Aucune donnée personnelle n’est conservée\") is FALSE for the apps, so shipping that line there would be a false privacy claim."
     }
@@ -106,130 +113,189 @@
     "$comment": "The about/licences screen. Wholly `app`: the sandbox is a hosted prototype with no store listing, no licence obligation to its visitors and nothing to attribute in-product. Three obligations meet on this one screen — MPL-2.0 §3.2 (a recipient of the executable must be told their rights), the ODbL attribution the Open Food Facts data carries, and the reachable privacy-policy URL both consoles demand before a listing can be submitted. The wording below is a SUMMARY of website.pocketnutrition.org/privacy.html and must not outrun it: if the policy and this screen ever disagree, the app is making a privacy claim nobody reviewed.",
     "title": {
       "fr": "À propos",
+      "en": "About",
       "scope": "app",
       "context": "Screen title, reached from the journal."
     },
     "version": {
       "fr": "Version {version}",
+      "en": "Version {version}",
       "scope": "app",
       "context": "{version} is the marketing version — CalVer YYYY.MM.PATCH, e.g. 2026.08.3. Shown because a bug report without it is unactionable."
     },
     "privacyTitle": {
       "fr": "Confidentialité",
+      "en": "Privacy",
       "scope": "app"
     },
     "privacySummary": {
       "fr": "Votre journal reste sur cet appareil. Aucun compte, aucune publicité, aucun traceur.",
+      "en": "Your journal stays on this device. No account, no ads, no trackers.",
       "scope": "app",
       "context": "Condenses the policy's own \"En résumé\" line. Deliberately makes no claim about the network — privacyNetwork does that, because a summary that stopped here would read as \"nothing is ever sent\", which is false."
     },
     "privacyNetwork": {
       "fr": "Une recherche envoie le texte saisi. Une analyse envoie les aliments, les quantités et les cuissons. Aucun identifiant n’accompagne ces requêtes.",
+      "en": "A search sends the text you typed. An analysis sends the foods, quantities and cooking methods. No identifier accompanies these requests.",
       "scope": "app",
       "context": "The two endpoints the app contacts, stated in the app rather than only in the policy. This is the sentence that keeps privacySummary honest."
     },
     "privacyLink": {
       "fr": "Lire la politique de confidentialité",
+      "en": "Read the privacy policy",
       "scope": "app",
       "context": "Opens the hosted policy. The same URL the store listings declare."
     },
     "sourcesTitle": {
       "fr": "Sources des données",
+      "en": "Data sources",
       "scope": "app"
     },
     "sourcesBody": {
-      "fr": "Valeurs nutritionnelles : table Ciqual (ANSES). Produits, marques et photos : Open Food Facts, sous licence ODbL.",
+      "fr": "Valeurs nutritionnelles : Ciqual 2025 (ANSES, Licence Ouverte), CoFID 2021 de McCance & Widdowson (contient des informations du secteur public sous Open Government Licence v3.0), USDA FoodData Central et table des rendements de cuisson USDA (domaine public). Produits, marques et photos : Open Food Facts, sous licence ODbL.",
+      "en": "Nutritional values: Ciqual 2025 (ANSES, Licence Ouverte), McCance & Widdowson's CoFID 2021 (contains public sector information licensed under the Open Government Licence v3.0), USDA FoodData Central and USDA cooking yields tables (public domain). Products, brands and photos: Open Food Facts, under the ODbL licence.",
       "scope": "app",
-      "context": "ATTRIBUTION, not credits. The app displays Open Food Facts labels, brands and product photographs; the Open Database License requires that attribution wherever the database is publicly used. Removing this line would be a licence breach, not a copy edit."
+      "context": "ATTRIBUTION, not credits. It names every dataset pocket-nutrition-data loads. The app displays Open Food Facts labels, brands and product photographs, and the Open Database License requires that attribution wherever the database is publicly used; the Open Government Licence v3.0 (CoFID) requires its own attribution statement, and the Licence Ouverte (Ciqual) requires the source to be named. Removing a source here would be a licence breach, not a copy edit. A dataset added to the pipeline must be added here."
     },
     "licenceTitle": {
       "fr": "Licence",
+      "en": "Licence",
       "scope": "app"
     },
     "licenceBody": {
       "fr": "Cette application est un logiciel libre, publié sous licence Mozilla Public License 2.0. Vous pouvez en consulter, en modifier et en redistribuer le code source.",
+      "en": "This app is free software, released under the Mozilla Public License 2.0. You may view, modify and redistribute its source code.",
       "scope": "app",
       "context": "MPL-2.0 §3.2 requires that recipients of the executable be informed of these rights. The repository LICENSE file reaches developers; this screen is what reaches the person who installed the app."
     },
     "sourceLink": {
       "fr": "Voir le code source",
+      "en": "View the source code",
       "scope": "app",
       "context": "Opens the public repository. Verified unauthenticated-reachable before shipping — a source link behind a login would make the licenceBody claim untrue in practice."
     },
     "thirdPartyTitle": {
       "fr": "Composants tiers",
+      "en": "Third-party components",
       "scope": "app"
     },
     "thirdPartyNone": {
       "fr": "Aucune dépendance externe.",
+      "en": "No external dependencies.",
       "scope": "app",
       "context": "iOS only, and true today: the target links nothing beyond the system frameworks. Android renders a list of components instead — their names and licence identifiers are proper nouns, not translatable copy, so they live in the client."
     },
     "close": {
       "fr": "Fermer",
+      "en": "Close",
       "scope": "app",
       "context": "Dismisses the screen. Distinct from feedback.close only by group; same word."
+    },
+    "languageTitle": {
+      "fr": "Langue",
+      "en": "Language",
+      "scope": "app",
+      "context": "Section title for the language switcher, added in contract 2.0.0. Placed above the server section: language is an every-user setting, the server override is a contributor-only escape hatch."
+    },
+    "languageAuto": {
+      "fr": "Automatique",
+      "en": "Automatic",
+      "scope": "app",
+      "context": "First option in the 3-way language switcher: follow the device's system language, falling back to English when the device is not French. The default state, and what a cleared override returns to."
+    },
+    "languageFr": {
+      "fr": "Français",
+      "en": "Français",
+      "scope": "app",
+      "context": "Second option in the 3-way language switcher: an explicit override, independent of the device's own language. Deliberately identical in both `fr` and `en` — a language names itself, in its own language, regardless of which language the picker is currently drawn in (the same convention iOS/Android system language settings use)."
+    },
+    "languageEn": {
+      "fr": "English",
+      "en": "English",
+      "scope": "app",
+      "context": "Third option in the 3-way language switcher. Identical in both `fr` and `en` for the same reason as languageFr — a language names itself."
+    }
+  },
+  "settings": {
+    "$comment": "Added in contract 2.1.0, additive. The language switcher and the server override used to share the about screen with the licence/attribution/privacy obligations; they are split out here into their own screen so the journal's menu can offer About and Settings as two distinct entries instead of one combined one. Wholly `app`: the sandbox has neither a language switcher nor a server override.",
+    "title": {
+      "fr": "Paramètres",
+      "en": "Settings",
+      "scope": "app",
+      "context": "Settings screen title, reached from the journal's menu. Also the label of that menu row — About's own row reuses about.title the same way."
     }
   },
   "mealBuilder": {
     "heading": {
       "fr": "Composez votre repas",
+      "en": "Build your meal",
       "scope": "shared"
     },
     "empty": {
       "fr": "Recherchez un aliment ci-dessus pour commencer",
+      "en": "Search for a food above to get started",
       "scope": "shared",
       "context": "Empty state, paired with a 🥗 glyph."
     },
     "analyse": {
       "fr": "Analyser le repas ({count} aliment{s})",
+      "en": "Analyze the meal ({count} item{s})",
       "scope": "shared",
       "plural": "{s} is \"s\" when count > 1, empty otherwise",
       "context": "Primary submit button."
     },
     "analysing": {
       "fr": "Analyse en cours…",
+      "en": "Analyzing…",
       "scope": "shared",
       "context": "Single-character ellipsis U+2026, not three dots."
     },
     "dropHere": {
       "fr": "Déposer ici",
+      "en": "Drop here",
       "scope": "shared",
       "context": "Placeholder inside an empty cooking lane."
     },
     "skipped": {
       "one": {
         "fr": "1 aliment n’a pas pu être ajouté",
+        "en": "1 item could not be added",
         "scope": "shared"
       },
       "many": {
         "fr": "{count} aliments n’ont pas pu être ajoutés",
+        "en": "{count} items could not be added",
         "scope": "shared",
         "plural": "used when count > 1"
       },
       "reason": {
         "fr": " : l’API n’a fourni ni portion de référence (servingG) ni état de consommation exploitable (typicalState, portionMeasuredState). Cette lacune se comble dans Knowledge — le sandbox n’invente aucun poids.",
+        "en": ": the API provided neither a reference portion (servingG) nor a usable eating state (typicalState, portionMeasuredState). This gap gets filled in Knowledge — the app never invents a weight.",
         "scope": "shared",
         "context": "Appended to `one`/`many`. The three field names render as inline code. An app must reword the trailing clause — \"le sandbox\" is the wrong subject there — but must keep the substance, since this is the user-facing expression of the never-invent-food-data rule."
       },
       "dismiss": {
         "fr": "Masquer l’avertissement",
+        "en": "Dismiss the warning",
         "scope": "shared",
         "context": "Accessibility label on the ✕ button."
       }
     },
     "quantity": {
       "fr": "Quantité",
+      "en": "Quantity",
       "scope": "app",
       "context": "Label beside the grams field on an expanded row."
     },
     "cooking": {
       "fr": "Cuisson",
+      "en": "Cooking",
       "scope": "app",
       "context": "Label above the cooking-method picker. The sandbox needs no such label: its method is implied by which drop-lane a card sits in, and the apps have no lanes."
     },
     "remove": {
       "fr": "Retirer",
+      "en": "Remove",
       "scope": "app",
       "context": "Removes one row from the meal being composed."
     }
@@ -237,11 +303,13 @@
   "search": {
     "placeholder": {
       "fr": "Ajouter un ou plusieurs aliments… (riz poulet pomme)",
+      "en": "Add one or more foods… (rice chicken apple)",
       "scope": "shared",
       "context": "The parenthetical teaches multi-term search, which is what makes X-Segment-Count meaningful."
     },
     "noResults": {
       "fr": "Aucun résultat",
+      "en": "No results",
       "scope": "shared"
     },
     "showMore": {
@@ -251,55 +319,66 @@
     },
     "multiTermHint": {
       "fr": "Plusieurs aliments d'un coup : « riz poulet pomme »",
+      "en": "Several foods at once: “rice chicken apple”",
       "scope": "app",
       "context": "Sits under the search field and teaches multi-term search, which is otherwise undiscoverable — nothing about a search field suggests that typing three words does anything different. It exists because `placeholder` cannot do this job on a phone: at 51 characters against a field that fits roughly 22, the parenthetical carrying the lesson is exactly what gets truncated. Shown only while the query is a single term; once the server reports a second, the hint has done its work and goes. `app` scope because the sandbox teaches the same thing through its own long placeholder."
     },
     "alreadyAdded": {
       "fr": "Déjà ajouté",
+      "en": "Already added",
       "scope": "shared",
       "context": "Badge on a suggestion already in the meal."
     },
     "productBadge": {
       "fr": "Produit",
+      "en": "Product",
       "scope": "shared",
       "context": "Marks an Open Food Facts packaged product rather than a Knowledge ingredient."
     },
     "sectionRecipes": {
       "fr": "Recettes",
+      "en": "Recipes",
       "scope": "shared",
       "context": "Section header above the recipe rows, which deduplicate-suggestions pins to the top of the list. Before these headers existed the list was flat, and a recipe — the highest-value result, one tap becoming a whole meal — was indistinguishable from an ingredient."
     },
     "sectionIngredients": {
       "fr": "Ingrédients",
+      "en": "Ingredients",
       "scope": "shared",
       "context": "Section header above curated Knowledge ingredients: productType 'ingredient'. These carry yield factors, serving units and a food group, so they are the results the app can reason about."
     },
     "sectionProducts": {
       "fr": "Produits de marque",
+      "en": "Branded products",
       "scope": "shared",
       "context": "Section header above Open Food Facts rows: productType 'off_product'. 'de marque' rather than a bare 'Produits' because the distinction a viewer needs is branded-packaged versus generic food, not product versus non-product. The API reserves these a fifth of the result window."
     },
     "recipePrefix": {
       "fr": "Recette : {label}",
+      "en": "Recipe: {label}",
       "scope": "shared",
       "context": "Recipe row title. Space before the colon — French typography."
     },
     "recipeComponentCount": {
       "fr": "{count} ingrédients",
+      "en": "{count} ingredients",
       "scope": "shared",
       "context": "Not pluralised in the source, so a single-component recipe reads \"1 ingrédients\". Defect, recorded verbatim."
     },
     "confirmAdd": {
       "fr": "Ajouter ({count})",
+      "en": "Add ({count})",
       "scope": "shared",
       "context": "Multi-select confirm, shown only when more than one search term was typed."
     },
     "cancel": {
       "fr": "Annuler",
+      "en": "Cancel",
       "scope": "shared"
     },
     "placeholderSingle": {
       "fr": "Rechercher un aliment…",
+      "en": "Search for a food…",
       "scope": "app",
       "context": "The short wording the native apps put in the field. NOTE, because the previous version of this note is now wrong: the apps DO have multi-term search — they read X-Segment-Count and offer a multi-select when the query is more than one phrase. They keep this wording anyway because `placeholder` is 51 characters against a field that fits about 22, so the phone would truncate away the \"(riz poulet pomme)\" that does the teaching. `multiTermHint` carries that under the field instead. Same field, two wordings, for width — no longer because the interaction differs."
     }
@@ -307,47 +386,57 @@
   "ingredientCard": {
     "drag": {
       "fr": "Déplacer",
+      "en": "Move",
       "scope": "shared",
       "context": "Accessibility label on the drag handle."
     },
     "changeCooking": {
       "fr": "Changer la cuisson et l'état de pesée",
+      "en": "Change cooking method and weighed state",
       "scope": "shared",
       "context": "Accessibility label on the method pill."
     },
     "remove": {
       "fr": "Retirer l'ingrédient",
+      "en": "Remove the ingredient",
       "scope": "shared"
     },
     "collapse": {
       "fr": "Réduire",
+      "en": "Collapse",
       "scope": "shared"
     },
     "report": {
       "fr": "Signaler",
+      "en": "Report",
       "scope": "shared",
       "context": "Discreet footer link opening the feedback dialog."
     },
     "reportAria": {
       "fr": "Signaler une imprécision",
+      "en": "Report an inaccuracy",
       "scope": "shared"
     },
     "cannotEatRaw": {
       "fr": "Cet aliment ne se consomme pas cru",
+      "en": "This food is not eaten raw",
       "scope": "shared",
       "context": "Tooltip on the disabled \"Cru\" option when canEatRaw is false."
     },
     "weighedLabel": {
       "fr": "Pesé :",
+      "en": "Weighed:",
       "scope": "shared",
       "context": "Non-breaking space before the colon in the source (Pesé&nbsp;:)."
     },
     "weighedGroupAria": {
       "fr": "Pesé avant ou après cuisson",
+      "en": "Weighed before or after cooking",
       "scope": "shared"
     },
     "weighedInline": {
       "fr": "(pesé {when} cuisson)",
+      "en": "(weighed {when} cooking)",
       "scope": "shared",
       "context": "Inside the method pill; {when} is measuredState.before / .after."
     }
@@ -356,34 +445,41 @@
     "$comment": "Whether the quantity is a pre- or post-cooking weight. The most consequential control in the UI — see the build-meal-ingredient vector suite.",
     "beforeLong": {
       "fr": "Avant cuisson",
+      "en": "Before cooking",
       "scope": "shared",
       "context": "Toggle button, paired with 🌿."
     },
     "afterLong": {
       "fr": "Après cuisson",
+      "en": "After cooking",
       "scope": "shared",
       "context": "Toggle button, paired with 🍽️."
     },
     "before": {
       "fr": "avant",
+      "en": "before",
       "scope": "shared",
       "context": "Short form inside the method pill."
     },
     "after": {
       "fr": "après",
+      "en": "after",
       "scope": "shared"
     },
     "rawShort": {
       "fr": "cru",
+      "en": "raw",
       "scope": "shared",
       "context": "Used in \"pesé cru\" on the results row."
     },
     "cookedShort": {
       "fr": "cuit",
+      "en": "cooked",
       "scope": "shared"
     },
     "weighedSummary": {
       "fr": "pesé {state}",
+      "en": "weighed {state}",
       "scope": "shared",
       "context": "{state} is rawShort or cookedShort."
     }
@@ -392,35 +488,42 @@
     "$comment": "Labels and appliance hints per cooking method. Emoji and colours live in tokens/cooking-palette.json under the same method ids. The API also accepts a generic \"cooked\", which has no picker entry — the client refuses it rather than guessing an appliance.",
     "raw": {
       "fr": "Cru",
+      "en": "Raw",
       "scope": "shared"
     },
     "boiled": {
       "fr": "Bouilli",
+      "en": "Boiled",
       "hint": "Eau",
       "scope": "shared"
     },
     "steamed": {
       "fr": "Vapeur",
+      "en": "Steamed",
       "hint": "Panier vapeur",
       "scope": "shared"
     },
     "grilled": {
       "fr": "Grillé",
+      "en": "Grilled",
       "hint": "Poêle / Barbecue",
       "scope": "shared"
     },
     "roasted": {
       "fr": "Rôti",
+      "en": "Roasted",
       "hint": "Four",
       "scope": "shared"
     },
     "fried": {
       "fr": "Frit",
+      "en": "Fried",
       "hint": "Friture",
       "scope": "shared"
     },
     "cookedGeneric": {
       "fr": "cuit (générique)",
+      "en": "cooked (generic)",
       "scope": "shared",
       "context": "Appears only in the feedback form's method list, never as a selectable cooking option."
     }
@@ -428,40 +531,49 @@
   "portionScale": {
     "exactAria": {
       "fr": "Saisir la quantité exacte",
+      "en": "Enter the exact quantity",
       "scope": "shared"
     },
     "currentAria": {
       "fr": "Quantité : {value} {unit}. Toucher pour saisir une valeur exacte.",
+      "en": "Quantity: {value} {unit}. Tap to enter an exact value.",
       "scope": "shared"
     },
     "decrementAria": {
       "fr": "Retirer {step} {unit}",
+      "en": "Remove {step} {unit}",
       "scope": "shared"
     },
     "incrementAria": {
       "fr": "Ajouter {step} {unit}",
+      "en": "Add {step} {unit}",
       "scope": "shared"
     },
     "shortcutsAria": {
       "fr": "Raccourcis de portion",
+      "en": "Portion shortcuts",
       "scope": "shared"
     },
     "setPortionAria": {
       "fr": "Définir la portion : {label}",
+      "en": "Set the portion: {label}",
       "scope": "shared",
       "context": "Multiplier shortcut."
     },
     "addUnitAria": {
       "fr": "Ajouter {grams} {unit} ({label})",
+      "en": "Add {grams} {unit} ({label})",
       "scope": "shared",
       "context": "Increment shortcut from a Knowledge serving unit."
     },
     "unitGram": {
       "fr": "g",
+      "en": "g",
       "scope": "shared"
     },
     "unitMillilitre": {
       "fr": "mL",
+      "en": "mL",
       "scope": "shared",
       "context": "Capital L, and preceded by a space in rendered weights (\"270 mL\") unlike grams (\"64g\"). Pinned by the describe-quantity vector suite."
     }
@@ -470,46 +582,56 @@
     "$comment": "Named portion sizes on the coarse scale. Pinned by the build-anchors and describe-quantity vector suites, so a port must not reword them — the vectors assert these exact strings.",
     "quarter": {
       "fr": "¼",
+      "en": "¼",
       "scope": "shared"
     },
     "small": {
       "fr": "Petite",
+      "en": "Small",
       "scope": "shared"
     },
     "one": {
       "fr": "1 part",
+      "en": "1 serving",
       "scope": "shared"
     },
     "large": {
       "fr": "Grande",
+      "en": "Large",
       "scope": "shared"
     },
     "double": {
       "fr": "Double",
+      "en": "Double",
       "scope": "shared"
     },
     "half": {
       "fr": "Demi",
+      "en": "Half",
       "scope": "shared",
       "context": "Shortcut-row multiplier only, not a scale anchor."
     },
     "onePart": {
       "fr": "1 Part",
+      "en": "1 Serving",
       "scope": "shared",
       "context": "Shortcut-row anchor. Capital P, unlike the scale anchor \"1 part\". Verbatim from the source; both are asserted by vectors."
     },
     "approx": {
       "fr": "≈ {value}",
+      "en": "≈ {value}",
       "scope": "shared",
       "context": "Prefix for an approximate descriptor. U+2248 followed by a space."
     },
     "portionUnit": {
       "fr": "portion",
+      "en": "serving",
       "scope": "shared",
       "context": "As in \"≈ 1,3 portion\" — never pluralised in the source, even above 2."
     },
     "belowOne": {
       "fr": "< 1{unit}",
+      "en": "< 1{unit}",
       "scope": "shared",
       "context": "Sub-unit weights render this way rather than as \"0g\"."
     }
@@ -517,47 +639,56 @@
   "nutrients": {
     "energy": {
       "fr": "Énergie",
+      "en": "Energy",
       "unit": "kcal",
       "scope": "shared"
     },
     "protein": {
       "fr": "Protéines",
+      "en": "Protein",
       "unit": "g",
       "scope": "shared"
     },
     "carbs": {
       "fr": "Glucides",
+      "en": "Carbs",
       "unit": "g",
       "scope": "shared"
     },
     "fat": {
       "fr": "Lipides",
+      "en": "Fat",
       "unit": "g",
       "scope": "shared"
     },
     "fiber": {
       "fr": "Fibres",
+      "en": "Fiber",
       "unit": "g",
       "scope": "shared",
       "context": "Hidden when the total is zero."
     },
     "sugars": {
       "fr": "Sucres",
+      "en": "Sugars",
       "unit": "g",
       "scope": "shared"
     },
     "proteinAbbr": {
       "fr": "P",
+      "en": "P",
       "scope": "shared",
       "context": "Compact per-ingredient row: \"P: 12,0 g\"."
     },
     "fatAbbr": {
       "fr": "L",
+      "en": "F",
       "scope": "shared",
       "context": "Lipides."
     },
     "carbsAbbr": {
       "fr": "G",
+      "en": "C",
       "scope": "shared",
       "context": "Glucides. Note G means carbs here, not grams."
     }
@@ -565,6 +696,7 @@
   "preview": {
     "title": {
       "fr": "Aperçu nutritionnel",
+      "en": "Nutritional preview",
       "scope": "shared",
       "context": "Live preview above the submit button."
     }
@@ -572,46 +704,56 @@
   "results": {
     "total": {
       "fr": "Total du repas",
+      "en": "Meal total",
       "scope": "shared"
     },
     "edit": {
       "fr": "Modifier le repas",
+      "en": "Edit the meal",
       "scope": "shared"
     },
     "unavailable": {
       "fr": "Données indisponibles pour cet aliment.",
+      "en": "Data unavailable for this food.",
       "scope": "shared",
       "context": "Shown when available is false. Must NOT be replaced by zeros."
     },
     "infoAria": {
       "fr": "Informations et signalement pour {name}",
+      "en": "Information and reporting for {name}",
       "scope": "shared"
     },
     "rowSummary": {
       "fr": "{quantity} {unit} · {method} · pesé {state}",
+      "en": "{quantity} {unit} · {method} · weighed {state}",
       "scope": "shared",
       "context": "Middot U+00B7 with spaces. {method} is the raw API value, untranslated in the source — a defect a port should fix by mapping through cookingMethods."
     },
     "source": {
       "cache": {
         "fr": "Cache",
+        "en": "Cache",
         "scope": "shared"
       },
       "ml": {
         "fr": "ML",
+        "en": "ML",
         "scope": "shared"
       },
       "off_direct": {
         "fr": "OpenFoodFacts",
+        "en": "OpenFoodFacts",
         "scope": "shared"
       },
       "unavailable": {
         "fr": "Indisponible",
+        "en": "Unavailable",
         "scope": "shared"
       }
     },
     "save": {
       "fr": "Enregistrer ce repas",
+      "en": "Save this meal",
       "scope": "app",
       "context": "Writes the analysed meal to the journal. The sandbox discards its results."
     }
@@ -642,70 +784,86 @@
   "errors": {
     "prefix": {
       "fr": "Erreur : {message}",
+      "en": "Error: {message}",
       "scope": "shared"
     },
     "retry": {
       "fr": "Réessayer",
+      "en": "Retry",
       "scope": "shared"
     }
   },
   "feedback": {
     "title": {
       "fr": "Signaler une imprécision",
+      "en": "Report an inaccuracy",
       "scope": "shared"
     },
     "intro": {
       "fr": "Choisissez une catégorie, puis l'erreur concernée.",
+      "en": "Choose a category, then the specific error.",
       "scope": "shared"
     },
     "referenceWeight": {
       "fr": "Poids de référence",
+      "en": "Reference weight",
       "scope": "shared",
       "context": "Current-value hint shown beside the form."
     },
     "displayUnit": {
       "fr": "Unité d'affichage",
+      "en": "Display unit",
       "scope": "shared"
     },
     "units": {
       "fr": "Unités",
+      "en": "Units",
       "scope": "shared"
     },
     "comment": {
       "fr": "Commentaire (optionnel)",
+      "en": "Comment (optional)",
       "scope": "shared"
     },
     "add": {
       "fr": "Ajouter",
+      "en": "Add",
       "scope": "shared",
       "context": "Adds one correction to the pending list."
     },
     "removeCorrection": {
       "fr": "Retirer cette correction",
+      "en": "Remove this correction",
       "scope": "shared"
     },
     "submit": {
       "fr": "Envoyer le signalement",
+      "en": "Submit the report",
       "scope": "shared"
     },
     "submitting": {
       "fr": "Envoi…",
+      "en": "Sending…",
       "scope": "shared"
     },
     "success": {
       "fr": "Merci, votre signalement a été transmis à l'équipe.",
+      "en": "Thanks, your report has been sent to the team.",
       "scope": "shared"
     },
     "failure": {
       "fr": "Envoi impossible pour le moment. Réessayez plus tard.",
+      "en": "Could not send right now. Try again later.",
       "scope": "shared"
     },
     "close": {
       "fr": "Fermer",
+      "en": "Close",
       "scope": "shared"
     },
     "unitAria": {
       "fr": "unité",
+      "en": "unit",
       "scope": "shared"
     },
     "catalog": {

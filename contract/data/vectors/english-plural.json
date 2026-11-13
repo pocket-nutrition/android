@@ -1,0 +1,61 @@
+{
+  "suite": "english-plural",
+  "description": "Naive English plural: append \"s\" for every count except exactly 1, unless the word already ends in \"s\". This is NOT the same rule as french-plural — French keeps the singular below 2 (\"1,5 carotte\"), English pluralises everything except exactly 1 (\"1.5 carrots\"). Real plural forms belong in Knowledge; until they exist all clients must be wrong in exactly the same way, which is what these vectors enforce. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "one-is-singular",
+      "why": "The baseline: exactly one stays singular, the one case where French and English agree.",
+      "input": {
+        "label": "carrot",
+        "count": 1
+      },
+      "expected": "carrot"
+    },
+    {
+      "id": "one-and-a-half-is-plural",
+      "why": "THE key divergence from French: English pluralises below 2, unlike French's \"1,5 carotte\" — \"1.5 carrots\".",
+      "input": {
+        "label": "carrot",
+        "count": 1.5
+      },
+      "expected": "carrots"
+    },
+    {
+      "id": "half-is-plural",
+      "why": "The other side of the same divergence: a fraction below one still pluralises in English, unlike French's \"0,5 carotte\".",
+      "input": {
+        "label": "carrot",
+        "count": 0.5
+      },
+      "expected": "carrots"
+    },
+    {
+      "id": "two-is-plural",
+      "why": "The mainline case — French and English agree here too, just for a different reason (French's threshold is inclusive at 2; English's is \"anything but 1\").",
+      "input": {
+        "label": "carrot",
+        "count": 2
+      },
+      "expected": "carrots"
+    },
+    {
+      "id": "fractional-above-two-is-plural",
+      "why": "Reachable from describeQuantity: 160 g of carrot is 2.2 items.",
+      "input": {
+        "label": "carrot",
+        "count": 2.2
+      },
+      "expected": "carrots"
+    },
+    {
+      "id": "already-ends-in-s",
+      "why": "Invariable words must not gain a second s (\"hummuss\") — the English mirror of french-plural's \"ananas\" case.",
+      "input": {
+        "label": "hummus",
+        "count": 3
+      },
+      "expected": "hummus"
+    }
+  ]
+}

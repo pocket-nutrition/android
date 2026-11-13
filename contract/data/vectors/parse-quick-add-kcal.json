@@ -1,0 +1,87 @@
+{
+  "suite": "parse-quick-add-kcal",
+  "description": "Reads a calorie figure typed in the search field for quick add: a whole number 1-5000, optionally followed by \"kcal\" (any case, optional space). Anything else returns null.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "bare-number",
+      "why": "Typing just 450 offers \"Add 450 kcal\": a bare number is never a food name.",
+      "input": {
+        "query": "450"
+      },
+      "expected": 450
+    },
+    {
+      "id": "with-unit",
+      "why": "The explicit form \"450 kcal\" is read the same as the bare number.",
+      "input": {
+        "query": "450 kcal"
+      },
+      "expected": 450
+    },
+    {
+      "id": "glued-unit-any-case",
+      "why": "People type \"450KCAL\" or \"450kcal\": the unit is case-insensitive and the space optional.",
+      "input": {
+        "query": "450KCAL"
+      },
+      "expected": 450
+    },
+    {
+      "id": "surrounding-spaces",
+      "why": "Leading and trailing spaces from the keyboard do not stop the match.",
+      "input": {
+        "query": "  320 kcal "
+      },
+      "expected": 320
+    },
+    {
+      "id": "grams-are-not-kcal",
+      "why": "\"200 g\" is a weight, not an energy: it must stay a search, never become 200 kcal.",
+      "input": {
+        "query": "200 g"
+      },
+      "expected": null
+    },
+    {
+      "id": "food-name",
+      "why": "A food with a number (\"2 pommes\") is a search, not a quick add.",
+      "input": {
+        "query": "2 pommes"
+      },
+      "expected": null
+    },
+    {
+      "id": "decimal-refused",
+      "why": "Decimals are refused so \"1,5\" or \"1.5\" never logs 1 or 15 kcal by accident.",
+      "input": {
+        "query": "12.5"
+      },
+      "expected": null
+    },
+    {
+      "id": "zero-refused",
+      "why": "0 kcal is not something to log: the lower bound is 1.",
+      "input": {
+        "query": "0"
+      },
+      "expected": null
+    },
+    {
+      "id": "upper-bound",
+      "why": "5000 is the largest accepted figure; above it is almost surely a typo.",
+      "input": {
+        "query": "5000"
+      },
+      "expected": 5000
+    },
+    {
+      "id": "above-bound",
+      "why": "5001 is refused rather than logged, to catch a slipped extra digit.",
+      "input": {
+        "query": "5001"
+      },
+      "expected": null
+    }
+  ]
+}

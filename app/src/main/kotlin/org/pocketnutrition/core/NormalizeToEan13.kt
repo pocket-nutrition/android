@@ -2,7 +2,7 @@
 package org.pocketnutrition.core
 
 /**
- * Turns what ML Kit recognises into the 13-digit key `GET /ingredients/barcode/{ean13}` expects, or
+ * Turns what the scanner recognises into the 13-digit key `GET /ingredients/barcode/{ean13}` expects, or
  * null for a format this app is not scoped to look up.
  *
  * UPC-A is EAN-13 with a leading zero omitted — the same catalogue entry is addressed by "0" plus the

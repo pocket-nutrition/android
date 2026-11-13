@@ -3,6 +3,7 @@ package org.pocketnutrition.model
 
 import java.util.UUID
 import org.pocketnutrition.api.FoodItemRequest
+import org.pocketnutrition.api.NutritionalProfile
 import org.pocketnutrition.core.AddItem
 import org.pocketnutrition.core.IngredientSuggestion
 import org.pocketnutrition.core.MealIngredient
@@ -10,9 +11,12 @@ import org.pocketnutrition.core.QuantityAnchor
 import org.pocketnutrition.core.QuantityContext
 import org.pocketnutrition.core.QuantityDescription
 import org.pocketnutrition.core.ScaleStep
+import org.pocketnutrition.core.applyMethodChange
 import org.pocketnutrition.core.buildAnchors
 import org.pocketnutrition.core.buildMealIngredient
 import org.pocketnutrition.core.describeQuantity
+import org.pocketnutrition.core.pickLocalized
+import org.pocketnutrition.core.roundHalfUp
 import org.pocketnutrition.core.stepLabel
 import org.pocketnutrition.core.stepRawWeight
 
@@ -42,14 +46,47 @@ fun MealIngredient.asRequest() = FoodItemRequest(
     ingredientId = ingredientId,
 )
 
+/**
+ * A quick-add row: an energy figure typed in the search field, with no ingredient behind it. Held in the
+ * builder as a row whose unit is "kcal" and quantity the energy, and never sent to the server.
+ */
+val MealIngredient.isQuickAddRow: Boolean get() = unit == QUICK_ADD_UNIT
+
+fun quickAddRow(kcal: Double, id: String = UUID.randomUUID().toString()) = MealIngredient(
+    id = id,
+    label = "${roundHalfUp(kcal)} kcal",
+    ingredientId = "quick-add:$id",
+    cookingMethod = "",
+    quantity = kcal,
+    unit = QUICK_ADD_UNIT,
+    measuredState = "",
+    basePortionG = kcal,
+    portionFactor = 1.0,
+    displayUnit = QUICK_ADD_UNIT,
+)
+
+private const val QUICK_ADD_UNIT = "kcal"
+
 /** The journal's persisted shape. Drops the portion model deliberately — see the note above. */
-fun MealIngredient.asMealItem() = MealItem(
+fun MealIngredient.asMealItem(): MealItem = if (isQuickAddRow) {
+    MealItem(ingredientId = null, label = label, quantityG = 0.0, cookingMethod = "", measuredState = "", energyKcal = quantity)
+} else MealItem(
     ingredientId = ingredientId,
     label = label,
     quantityG = quantity,
     cookingMethod = cookingMethod,
     measuredState = measuredState,
 )
+
+/**
+ * Marks the items the server could not compute, so a saved meal still shows them as not recognised.
+ * [profiles] are aligned with [items] one for one (see `mergeQuickAdd`); an item without a matching
+ * answer is left as it is.
+ */
+fun withAvailability(items: List<MealItem>, profiles: List<NutritionalProfile>): List<MealItem> =
+    items.mapIndexed { index, item ->
+        if (profiles.getOrNull(index)?.available == false) item.copy(available = false) else item
+    }
 
 /**
  * Rebuilds a builder row from a saved entry, for editing.
@@ -62,7 +99,8 @@ fun MealIngredient.asMealItem() = MealItem(
  * convert it. The one consequence worth knowing — switching cooking method on an edited row will not
  * auto-adjust the weight, since there is no yield factor to convert with.
  */
-fun MealItem.asMealIngredient(id: String = UUID.randomUUID().toString()) = MealIngredient(
+fun MealItem.asMealIngredient(id: String = UUID.randomUUID().toString()): MealIngredient =
+    if (isQuickAdd && energyKcal != null) quickAddRow(energyKcal, id) else MealIngredient(
     id = id,
     label = label,
     ingredientId = ingredientId ?: id,
@@ -90,29 +128,30 @@ fun MealItem.asMealIngredient(id: String = UUID.randomUUID().toString()) = MealI
  * composable is what keeps `step-raw-weight`'s rule — unit steps ignore the base portion entirely —
  * from being re-derived by hand somewhere it would be got wrong.
  */
-fun MealIngredient.ladder(): List<ScaleStep> =
-    buildAnchors(basePortionG = basePortionG, servingUnits = servingUnits, servingMode = servingMode)
+fun MealIngredient.ladder(lang: String): List<ScaleStep> =
+    buildAnchors(basePortionG = basePortionG, servingUnits = servingUnits, servingMode = servingMode, lang = lang)
 
-fun MealIngredient.anchors(): List<QuantityAnchor> = ladder().map {
-    QuantityAnchor(label = stepLabel(it), grams = stepRawWeight(it, basePortionG))
+fun MealIngredient.anchors(lang: String): List<QuantityAnchor> = ladder(lang).map {
+    QuantityAnchor(label = stepLabel(it, lang), grams = stepRawWeight(it, basePortionG))
 }
 
-/** The collapsed summary — "≈ 1,3 portion" and the weight beneath it. */
-fun MealIngredient.summary(): QuantityDescription {
+/** The collapsed summary — "≈ 1,3 portion"/"≈ 1.3 servings" and the weight beneath it. */
+fun MealIngredient.summary(lang: String): QuantityDescription {
     val itemUnit = servingUnits.firstOrNull { it.isItem }
     return describeQuantity(
         currentG = quantity,
-        anchors = anchors(),
+        anchors = anchors(lang),
         context = QuantityContext(
             servingMode = servingMode,
             // describeQuantity keys its item branch on these rather than on servingMode — the corpus has
             // a case with no servingMode that still takes that branch — so passing them is what makes
             // "≈ 2 carottes" possible at all.
             itemUnitG = itemUnit?.grams,
-            itemLabel = itemUnit?.labelFr,
+            itemLabel = itemUnit?.let { pickLocalized(it.labels, lang) },
             portionG = basePortionG,
             displayUnit = displayUnit,
         ),
+        lang = lang,
     )
 }
 
@@ -135,11 +174,11 @@ fun MealIngredient.summary(): QuantityDescription {
  * which is no longer a value this app ever produces.
  */
 fun IngredientSuggestion.asMealRow(id: String = UUID.randomUUID().toString()): MealIngredient {
-    buildMealIngredient(AddItem(this), id)?.let { return it }
+    buildMealIngredient(AddItem(this), id)?.let { return it.lockedToRawIfIndustrial(isProduct) }
 
     val base = servingG ?: FALLBACK_PORTION_G
     val unit = if (displayUnit == "ml") "ml" else "g"
-    return MealIngredient(
+    val fallback = MealIngredient(
         id = id,
         label = label,
         ingredientId = ingredientId,
@@ -158,6 +197,19 @@ fun IngredientSuggestion.asMealRow(id: String = UUID.randomUUID().toString()): M
         imageUrl = imageUrl,
         servingMode = servingMode,
     )
+    return fallback.lockedToRawIfIndustrial(isProduct)
+}
+
+/**
+ * Locks a row to "raw" the moment it wraps an Open Food Facts product — the backend now always
+ * analyses these rows at their own values (source "off_direct", cookingMethod "raw") regardless of
+ * what is requested, so offering a cooking-method choice here would be a UI lie. Goes through
+ * [applyMethodChange] rather than re-deriving the raw-weight math, so that conversion stays the one
+ * place it is pinned. Idempotent for a row that is already raw.
+ */
+fun MealIngredient.lockedToRawIfIndustrial(isProduct: Boolean): MealIngredient {
+    if (!isProduct) return this
+    return applyMethodChange(this, "raw").copy(isIndustrialProduct = true)
 }
 
 /**

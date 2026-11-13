@@ -1,0 +1,190 @@
+{
+  "suite": "shortcut-profile-en",
+  "description": "The English wording of the shortcut-profile row: Half / 1 Serving / Double, mirroring the French Demi / 1 Part / Double — a different label set from build-anchors-en's, same distinction as the French pair (Petite/1 part/Grande vs Demi/1 Part/Double). Same branch logic as shortcut-profile; only the fallback labels and the ServingUnit shape (labels: [{lang, text}]) differ. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "no-serving-units-gives-three-multipliers",
+      "why": "The fallback shape. Note it is 3 entries, not 4 — no anchor is added on this path.",
+      "input": {
+        "servingUnits": [],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "Half", "factor": 0.5 },
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "multiplier", "label": "Double", "factor": 2 }
+      ]
+    },
+    {
+      "id": "item-unit-is-excluded",
+      "why": "A countable item is already covered by the multipliers, so offering \"1 carrot\" next to \"1 Serving\" would be the same button twice. Filtering it out leaves nothing, so the row falls back to the three multipliers.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74,
+            "unit": "item"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "Half", "factor": 0.5 },
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "multiplier", "label": "Double", "factor": 2 }
+      ]
+    },
+    {
+      "id": "anchor-plus-knowledge-increments",
+      "why": "The mixed shape: exactly one multiplier, then the Knowledge units in the order given. They are not sorted by weight.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "tablespoon" }],
+            "volumeMl": 0,
+            "grams": 15,
+            "unit": "tablespoon"
+          },
+          {
+            "labels": [{ "lang": "en", "text": "cup" }],
+            "volumeMl": 0,
+            "grams": 180,
+            "unit": "cup"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "increment", "label": "tablespoon", "emoji": "🥄", "grams": 15 },
+        { "kind": "increment", "label": "cup", "emoji": "🥣", "grams": 180 }
+      ]
+    },
+    {
+      "id": "millilitres-read-volumeMl-not-grams",
+      "why": "For a volume food the increment comes from volumeMl, while the output field is still called `grams`.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "tablespoon" }],
+            "volumeMl": 15,
+            "grams": 0,
+            "unit": "tablespoon"
+          }
+        ],
+        "displayUnit": "ml",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "increment", "label": "tablespoon", "emoji": "🥄", "grams": 15 }
+      ]
+    },
+    {
+      "id": "caps-the-row-at-four",
+      "why": "Four serving units give one anchor plus three increments; the fourth unit (glass) is dropped.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "teaspoon" }],
+            "volumeMl": 0,
+            "grams": 5,
+            "unit": "teaspoon"
+          },
+          {
+            "labels": [{ "lang": "en", "text": "tablespoon" }],
+            "volumeMl": 0,
+            "grams": 15,
+            "unit": "tablespoon"
+          },
+          {
+            "labels": [{ "lang": "en", "text": "cup" }],
+            "volumeMl": 0,
+            "grams": 180,
+            "unit": "cup"
+          },
+          {
+            "labels": [{ "lang": "en", "text": "glass" }],
+            "volumeMl": 0,
+            "grams": 200,
+            "unit": "glass"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "increment", "label": "teaspoon", "emoji": "🥄", "grams": 5 },
+        { "kind": "increment", "label": "tablespoon", "emoji": "🥄", "grams": 15 },
+        { "kind": "increment", "label": "cup", "emoji": "🥣", "grams": 180 }
+      ]
+    },
+    {
+      "id": "drops-units-that-round-below-one",
+      "why": "A 0.2 g pinch rounds to 0 and would be a button that adds nothing. Dropping it empties the increment list, so the multipliers come back.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "pinch" }],
+            "volumeMl": 0,
+            "grams": 0.2,
+            "unit": "pinch"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "Half", "factor": 0.5 },
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "multiplier", "label": "Double", "factor": 2 }
+      ]
+    },
+    {
+      "id": "rounds-the-increment-weight",
+      "why": "Increment weights are rounded once, here, with the half-up rule: 15.5 g becomes 16, not 15.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "tablespoon" }],
+            "volumeMl": 0,
+            "grams": 15.5,
+            "unit": "tablespoon"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "increment", "label": "tablespoon", "emoji": "🥄", "grams": 16 }
+      ]
+    },
+    {
+      "id": "unknown-unit-has-no-emoji",
+      "why": "The emoji map is cosmetic and closed. An unrecognised unit renders with no icon rather than a placeholder or an error, so in the emitted JSON the `emoji` key is ABSENT, not null.",
+      "input": {
+        "servingUnits": [
+          {
+            "labels": [{ "lang": "en", "text": "scoop" }],
+            "volumeMl": 0,
+            "grams": 50,
+            "unit": "scoop"
+          }
+        ],
+        "displayUnit": "g",
+        "lang": "en"
+      },
+      "expected": [
+        { "kind": "multiplier", "label": "1 Serving", "factor": 1 },
+        { "kind": "increment", "label": "scoop", "grams": 50 }
+      ]
+    }
+  ]
+}

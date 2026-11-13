@@ -78,13 +78,13 @@ sealed interface CameraPermissionDialog {
 fun CameraPrePermissionDialog(onContinue: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Fr.SCAN_EXPLAIN_TITLE, color = PnColor.InkDefault) },
-        text = { Text(Fr.SCAN_EXPLAIN_BODY, color = PnColor.InkSoft) },
+        title = { Text(Strings.active.SCAN_EXPLAIN_TITLE, color = PnColor.InkDefault) },
+        text = { Text(Strings.active.SCAN_EXPLAIN_BODY, color = PnColor.InkSoft) },
         confirmButton = {
-            TextButton(onClick = onContinue) { Text(Fr.SCAN_EXPLAIN_CONTINUE, color = PnColor.BrandLeafDeep) }
+            TextButton(onClick = onContinue) { Text(Strings.active.SCAN_EXPLAIN_CONTINUE, color = PnColor.BrandLeafDeep) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(Fr.SCAN_EXPLAIN_CANCEL, color = PnColor.InkSoft) }
+            TextButton(onClick = onDismiss) { Text(Strings.active.SCAN_EXPLAIN_CANCEL, color = PnColor.InkSoft) }
         },
         containerColor = PnColor.SurfaceCard,
     )
@@ -95,13 +95,13 @@ fun CameraPrePermissionDialog(onContinue: () -> Unit, onDismiss: () -> Unit) {
 fun CameraSettingsDialog(onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(Fr.SCAN_SETTINGS_TITLE, color = PnColor.InkDefault) },
-        text = { Text(Fr.SCAN_SETTINGS_BODY, color = PnColor.InkSoft) },
+        title = { Text(Strings.active.SCAN_SETTINGS_TITLE, color = PnColor.InkDefault) },
+        text = { Text(Strings.active.SCAN_SETTINGS_BODY, color = PnColor.InkSoft) },
         confirmButton = {
-            TextButton(onClick = onOpenSettings) { Text(Fr.SCAN_SETTINGS_OPEN, color = PnColor.BrandLeafDeep) }
+            TextButton(onClick = onOpenSettings) { Text(Strings.active.SCAN_SETTINGS_OPEN, color = PnColor.BrandLeafDeep) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(Fr.SCAN_SETTINGS_CANCEL, color = PnColor.InkSoft) }
+            TextButton(onClick = onDismiss) { Text(Strings.active.SCAN_SETTINGS_CANCEL, color = PnColor.InkSoft) }
         },
         containerColor = PnColor.SurfaceCard,
     )

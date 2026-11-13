@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * Proves the vendored corpus is present, parseable and internally consistent from Kotlin.
  *
- * **Every suite is implemented and asserted — 144 of 144 cases across 17 suites.** The counts are not
+ * **Every suite is implemented and asserted — 225 of 225 cases across 28 suites.** The counts are not
  * restated in the assertions below: those read index.json, so this comment is the only thing that can go
  * stale, and a suite added upstream without a port here fails `required` rather than this prose.
  *
@@ -64,19 +64,36 @@ class CorpusIntegrityTest {
         // coverage. Each is a function the meal builder cannot be written without.
         val required = listOf(
             "apply-method-change",
+            "apply-target-overrides",
+            "daily-targets",
+            "day-progress",
+            "profile-for-day",
+            "self-comparison",
+            "weight-for-day",
             "switch-measured-state",
             "build-anchors",
+            "build-anchors-en",
             "build-meal-ingredient",
             "deduplicate-suggestions",
             "selection-mode",
             "describe-quantity",
+            "describe-quantity-en",
+            "english-number",
+            "english-plural",
             "food-group-icon",
             "french-number",
             "french-plural",
+            "meal-slot",
+            "meal-slot-default-time",
+            "parse-quick-add-kcal",
+            "rank-recents",
             "rounding",
+            "scale-dish-quantity",
             "serving-unit-emoji",
             "shortcut-profile",
+            "shortcut-profile-en",
             "step-label",
+            "step-label-en",
             "step-raw-weight",
             "unpack-recipe",
             "yield-factor",

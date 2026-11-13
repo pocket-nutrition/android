@@ -7,6 +7,10 @@
   journal.json is the food diary. It lives in filesDir and must never leave the device, because
   JournalScreen tells the user exactly that: "Vos repas sont enregistrés uniquement sur cet appareil."
 
+  The voice-capture entries, recordings (recognition_audio/), recognition_settings prefs and daily_targets.json
+  (profile, overrides, weight log) are excluded in both destinations too, and so are the vault_settings prefs
+  (Keystore-encrypted vault session) and the vault sync bookkeeping (*_vault_sync.json).
+
   Both destinations are declared, and the duplication is required rather than accidental: <cloud-backup>
   governs Google Drive, <device-transfer> governs a direct phone-to-phone migration, and excluding one
   does not exclude the other. Device transfer never leaves the user's own hands, so it is arguably
@@ -18,8 +22,36 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="journal.json" />
+        <exclude domain="file" path="daily_targets.json" />
+        <exclude domain="file" path="daily_targets.json.tmp" />
+        <exclude domain="file" path="daily_targets.unreadable.json" />
+        <exclude domain="file" path="meal_shortcuts.json" />
+        <exclude domain="file" path="meal_shortcuts.json.tmp" />
+        <exclude domain="file" path="recognition_entries.json" />
+        <exclude domain="file" path="recognition_entries.json.tmp" />
+        <exclude domain="file" path="recognition_audio" />
+        <exclude domain="sharedpref" path="recognition_settings.xml" />
+        <exclude domain="sharedpref" path="vault_settings.xml" />
+        <exclude domain="file" path="journal_vault_sync.json" />
+        <exclude domain="file" path="journal_vault_sync.json.tmp" />
+        <exclude domain="file" path="targets_vault_sync.json" />
+        <exclude domain="file" path="targets_vault_sync.json.tmp" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="journal.json" />
+        <exclude domain="file" path="daily_targets.json" />
+        <exclude domain="file" path="daily_targets.json.tmp" />
+        <exclude domain="file" path="daily_targets.unreadable.json" />
+        <exclude domain="file" path="meal_shortcuts.json" />
+        <exclude domain="file" path="meal_shortcuts.json.tmp" />
+        <exclude domain="file" path="recognition_entries.json" />
+        <exclude domain="file" path="recognition_entries.json.tmp" />
+        <exclude domain="file" path="recognition_audio" />
+        <exclude domain="sharedpref" path="recognition_settings.xml" />
+        <exclude domain="sharedpref" path="vault_settings.xml" />
+        <exclude domain="file" path="journal_vault_sync.json" />
+        <exclude domain="file" path="journal_vault_sync.json.tmp" />
+        <exclude domain="file" path="targets_vault_sync.json" />
+        <exclude domain="file" path="targets_vault_sync.json.tmp" />
     </device-transfer>
 </data-extraction-rules>

@@ -29,20 +29,25 @@ sealed interface Shortcut {
  * filter can empty the list, and when it does the multipliers come back — which is how the stated
  * invariant holds: **the result always has between 2 and 4 entries.**
  *
- * Pinned by the `shortcut-profile` suite of the shared behavioural corpus.
+ * Pinned by the `shortcut-profile`/`shortcut-profile-en` suites of the shared behavioural corpus.
  */
-fun shortcutProfile(servingUnits: List<ServingUnit>, displayUnit: String): List<Shortcut> {
+fun shortcutProfile(servingUnits: List<ServingUnit>, displayUnit: String, lang: String): List<Shortcut> {
     val increments = servingUnits
         .filterNot { it.isItem }
         .map { it to roundHalfUp(measure(it, displayUnit)) }
         .filter { (_, grams) -> grams >= 1 }
         .take(MAXIMUM_INCREMENTS)
         .map { (unit, grams) ->
-            Shortcut.Increment(label = unit.labelFr, emoji = servingUnitEmoji(unit.unit), grams = grams)
+            Shortcut.Increment(
+                label = pickLocalized(unit.labels, lang) ?: unit.unit,
+                emoji = servingUnitEmoji(unit.unit),
+                grams = grams,
+            )
         }
 
-    if (increments.isEmpty()) return BASE_MULTIPLIERS
-    return listOf(Shortcut.Multiplier(label = "1 Part", factor = 1.0)) + increments
+    if (increments.isEmpty()) return baseMultipliers(lang)
+    val onePartLabel = if (lang == "en") "1 Serving" else "1 Part"
+    return listOf(Shortcut.Multiplier(label = onePartLabel, factor = 1.0)) + increments
 }
 
 /**
@@ -57,15 +62,24 @@ private fun measure(unit: ServingUnit, displayUnit: String): Double =
     if (displayUnit == "ml") unit.volumeMl else unit.grams
 
 /**
- * The fallback path when nothing is usable.
+ * The fallback path when nothing is usable, per language.
  *
  * These three labels differ from the anchor ladder's — `portionAnchors.half` is "Demi" and `.onePart`
  * is "1 Part", where the ladder uses "Petite" and "1 part" with a lowercase p. Two similar-looking
- * sets that are not the same set.
+ * sets that are not the same set, in either language.
  */
-private val BASE_MULTIPLIERS = listOf(
+private fun baseMultipliers(lang: String): List<Shortcut> =
+    if (lang == "en") BASE_MULTIPLIERS_EN else BASE_MULTIPLIERS_FR
+
+private val BASE_MULTIPLIERS_FR = listOf(
     Shortcut.Multiplier("Demi", 0.5),
     Shortcut.Multiplier("1 Part", 1.0),
+    Shortcut.Multiplier("Double", 2.0),
+)
+
+private val BASE_MULTIPLIERS_EN = listOf(
+    Shortcut.Multiplier("Half", 0.5),
+    Shortcut.Multiplier("1 Serving", 1.0),
     Shortcut.Multiplier("Double", 2.0),
 )
 

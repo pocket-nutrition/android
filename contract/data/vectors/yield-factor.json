@@ -1,6 +1,6 @@
 {
   "suite": "yield-factor",
-  "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the pocket-nutrition-ml router.",
+  "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the ml router.",
   "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
   "cases": [
     {

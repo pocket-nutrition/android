@@ -102,7 +102,7 @@ class BuildMealIngredientVectorTest {
         val milk = IngredientSuggestion(
             "milk", "lait", servingG = 200.0, displayUnit = "ml", typicalState = "raw",
             portionMeasuredState = "raw",
-            servingUnits = listOf(ServingUnit("glass", "verre", 200.0, 206.0)),
+            servingUnits = listOf(ServingUnit("glass", listOf(LocalizedText("fr", "verre")), 200.0, 206.0)),
         )
 
         val byVolume = requireNotNull(buildMealIngredient(AddItem(milk), id = "i"))

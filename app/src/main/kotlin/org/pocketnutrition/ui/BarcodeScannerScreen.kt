@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.pocketnutrition.ui
 
-import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -29,18 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import java.util.concurrent.Executors
 import androidx.lifecycle.LifecycleOwner
-import com.google.mlkit.vision.barcode.BarcodeScanner
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
 import org.pocketnutrition.core.design.PnColor
+import org.pocketnutrition.core.LuminanceBarcodeDecoder
 import org.pocketnutrition.core.normalizeToEan13
 
 /**
  * Live barcode scanning: a CameraX preview feeding an [ImageAnalysis] use case whose analyzer runs
- * ML Kit's on-device barcode decoder. Detection is continuous and automatic — there is no shutter
+ * ZXing's on-device barcode decoder. Detection is continuous and automatic — there is no shutter
  * button, which is the whole point: the analyzer callback itself is the detection event.
  *
  * Restricted to EAN-13/UPC-A: this app's backend is path-templated `GET /ingredients/barcode/{ean13}`,
@@ -60,6 +55,8 @@ fun BarcodeScannerScreen(onBarcodeDetected: (String) -> Unit, onClose: () -> Uni
     }
     var hasFired by remember { mutableStateOf(false) }
     val onDetected by rememberUpdatedState(onBarcodeDetected)
+    // ZXing decodes synchronously, so frames are analysed off the main thread; only the result hops back.
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
@@ -73,15 +70,20 @@ fun BarcodeScannerScreen(onBarcodeDetected: (String) -> Unit, onClose: () -> Uni
                         val preview = Preview.Builder().build().also {
                             it.surfaceProvider = previewView.surfaceProvider
                         }
-                        val scannerOptions = BarcodeScannerOptions.Builder()
-                            .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_UPC_A)
-                            .build()
-                        val scanner = BarcodeScanning.getClient(scannerOptions)
+                        val decoder = LuminanceBarcodeDecoder()
                         val analysis = ImageAnalysis.Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
-                        analysis.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
-                            analyzeFrame(imageProxy, scanner, hasFired, { hasFired = true }, onDetected)
+                        val mainExecutor = ContextCompat.getMainExecutor(ctx)
+                        analysis.setAnalyzer(analysisExecutor) { imageProxy ->
+                            analyzeFrame(imageProxy, decoder, hasFired) { ean13 ->
+                                mainExecutor.execute {
+                                    if (!hasFired) {
+                                        hasFired = true
+                                        onDetected(ean13)
+                                    }
+                                }
+                            }
                         }
                         cameraProvider.unbindAll()
                         cameraProvider.bindToLifecycle(
@@ -98,11 +100,11 @@ fun BarcodeScannerScreen(onBarcodeDetected: (String) -> Unit, onClose: () -> Uni
         )
 
         TextButton(onClick = onClose, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
-            Text(Fr.SCAN_CLOSE, color = PnColor.SurfacePaper, fontSize = 16.sp)
+            Text(Strings.active.SCAN_CLOSE, color = PnColor.SurfacePaper, fontSize = 16.sp)
         }
 
         Text(
-            text = Fr.SCAN_BUTTON_A11Y,
+            text = Strings.active.SCAN_BUTTON_A11Y,
             color = PnColor.SurfacePaper,
             fontSize = 14.sp,
             modifier = Modifier
@@ -115,37 +117,35 @@ fun BarcodeScannerScreen(onBarcodeDetected: (String) -> Unit, onClose: () -> Uni
     DisposableEffect(Unit) {
         onDispose {
             ProcessCameraProvider.getInstance(context).get().unbindAll()
+            analysisExecutor.shutdown()
         }
     }
 }
 
 /**
- * Runs one frame through the ML Kit decoder. `imageProxy.close()` always runs, in `finally` — a leaked
+ * Runs one frame through the decoder. `imageProxy.close()` always runs, in `finally` — a leaked
  * [ImageProxy] stalls the whole analysis pipeline after a few frames, since CameraX will not deliver a
  * new one until the previous is closed. [hasFired] guards against a burst of frames all detecting the
  * same code while the first detection's lookup is still in flight from the caller's perspective.
+ *
+ * Only the Y (luminance) plane is read: a barcode is black on white, so colour carries nothing. The
+ * plane's row stride can exceed the image width, which [LuminanceBarcodeDecoder.decode] accounts for.
  */
-@OptIn(ExperimentalGetImage::class)
 private fun analyzeFrame(
     imageProxy: ImageProxy,
-    scanner: BarcodeScanner,
+    decoder: LuminanceBarcodeDecoder,
     hasFired: Boolean,
-    markFired: () -> Unit,
     onDetected: (String) -> Unit,
 ) {
-    val mediaImage = imageProxy.image
-    if (hasFired || mediaImage == null) {
+    try {
+        if (hasFired) return
+        val plane = imageProxy.planes.firstOrNull() ?: return
+        val buffer = plane.buffer
+        val luminance = ByteArray(buffer.remaining()).also { buffer.get(it) }
+        val raw = decoder.decode(luminance, plane.rowStride, imageProxy.width, imageProxy.height)
+        val ean13 = raw?.let(::normalizeToEan13)
+        if (ean13 != null) onDetected(ean13)
+    } finally {
         imageProxy.close()
-        return
     }
-    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-    scanner.process(image)
-        .addOnSuccessListener { barcodes ->
-            val ean13 = barcodes.firstNotNullOfOrNull { it.rawValue?.let(::normalizeToEan13) }
-            if (ean13 != null && !hasFired) {
-                markFired()
-                onDetected(ean13)
-            }
-        }
-        .addOnCompleteListener { imageProxy.close() }
 }

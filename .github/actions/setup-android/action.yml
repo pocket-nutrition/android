@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Set up Android build
+description: JDK, Android SDK platform and build-tools, and Gradle caching.
+runs:
+  using: composite
+  steps:
+    # AGP 9 needs JDK 17 or newer; 21 matches .ci/Dockerfile and local development.
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: "21"
+
+    # ubuntu-latest ships an Android SDK, but not necessarily this platform. sdkmanager is a no-op
+    # when the package is already installed.
+    - name: Install the pinned platform and build-tools
+      shell: bash
+      run: |
+        yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+        "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install \
+          "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}"
+
+    - uses: gradle/actions/setup-gradle@v5

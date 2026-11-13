@@ -1,0 +1,39 @@
+{
+  "suite": "meal-slot-default-time",
+  "description": "The time (minutes since midnight) given to a meal filed under a slot when it is not logged now: another day, or a slot picked by hand. A typical moment inside each band.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "breakfast-0800",
+      "why": "Breakfast defaults to 08:00, inside its band, so the meal sorts first in the day.",
+      "input": {
+        "slot": "breakfast"
+      },
+      "expected": 480
+    },
+    {
+      "id": "lunch-1230",
+      "why": "Lunch defaults to 12:30, the middle of its band, which is the time most people mean.",
+      "input": {
+        "slot": "lunch"
+      },
+      "expected": 750
+    },
+    {
+      "id": "dinner-1930",
+      "why": "Dinner defaults to 19:30, inside the 17:30-22:30 band, after any afternoon snack.",
+      "input": {
+        "slot": "dinner"
+      },
+      "expected": 1170
+    },
+    {
+      "id": "snack-1600",
+      "why": "Snack defaults to 16:00, the afternoon gap: the round trip slot -> time -> slot must give snack back.",
+      "input": {
+        "slot": "snack"
+      },
+      "expected": 960
+    }
+  ]
+}

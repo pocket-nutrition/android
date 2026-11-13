@@ -1,0 +1,79 @@
+{
+  "suite": "meal-slot",
+  "description": "Which part of the day a meal belongs to, from its local time in minutes since midnight. Half-open bands: breakfast [240, 630), lunch [630, 900), dinner [1050, 1350), snack for everything else.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "breakfast-start-inclusive",
+      "why": "04:00 opens breakfast: the band start is inclusive, so a very early meal is not a snack.",
+      "input": {
+        "minutes": 240
+      },
+      "expected": "breakfast"
+    },
+    {
+      "id": "before-breakfast-is-snack",
+      "why": "03:59 is still the night: anything before the breakfast band is a snack, never yesterday's dinner.",
+      "input": {
+        "minutes": 239
+      },
+      "expected": "snack"
+    },
+    {
+      "id": "breakfast-typical",
+      "why": "A typical 08:15 breakfast lands in the breakfast band, the common case every port must get right.",
+      "input": {
+        "minutes": 495
+      },
+      "expected": "breakfast"
+    },
+    {
+      "id": "lunch-start-inclusive",
+      "why": "10:30 is the first lunch minute: the boundary belongs to lunch, not to breakfast (half-open bands).",
+      "input": {
+        "minutes": 630
+      },
+      "expected": "lunch"
+    },
+    {
+      "id": "lunch-end-exclusive",
+      "why": "15:00 is no longer lunch: the band end is exclusive, so the afternoon starts as snack time.",
+      "input": {
+        "minutes": 900
+      },
+      "expected": "snack"
+    },
+    {
+      "id": "afternoon-gap-is-snack",
+      "why": "The 15:00-17:30 gap between lunch and dinner is snack time on purpose (goûter).",
+      "input": {
+        "minutes": 990
+      },
+      "expected": "snack"
+    },
+    {
+      "id": "dinner-start-inclusive",
+      "why": "17:30 opens dinner, inclusive, so an early family dinner is not filed as a snack.",
+      "input": {
+        "minutes": 1050
+      },
+      "expected": "dinner"
+    },
+    {
+      "id": "dinner-end-exclusive",
+      "why": "22:30 is past dinner: a late plate after the band is a snack, matching how people describe it.",
+      "input": {
+        "minutes": 1350
+      },
+      "expected": "snack"
+    },
+    {
+      "id": "fractional-minutes-floor",
+      "why": "Seconds are dropped by flooring, so 10:29:59 (629.98 minutes) is still breakfast, not rounded up to lunch.",
+      "input": {
+        "minutes": 629.98
+      },
+      "expected": "breakfast"
+    }
+  ]
+}

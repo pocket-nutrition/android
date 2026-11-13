@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<!-- The only folder handed to the camera app: a scratch file for a meal photo, deleted once encoded. -->
+<paths>
+    <cache-path name="meal_photo" path="meal-photo/" />
+</paths>

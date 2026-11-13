@@ -1,0 +1,110 @@
+{
+  "suite": "step-label-en",
+  "description": "The English wording of the step-label suite. A factor step carries its own label verbatim, regardless of language — this suite's factor case is genuinely language-independent, since stepLabel never inspects a factor's label, only echoes it. A unit step renders \"<count> <unit>\", pluralised by english-plural rather than french-plural. The key divergence from step-label.json: at count 0.25 and 0.5, French stays singular (\"¼ carotte\") while English pluralises (\"¼ carrots\") — english-plural's rule fires on both fractions, not just whole counts. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "factor-step-uses-its-own-label",
+      "why": "Factor steps are pre-labelled, so no formatting is applied — language-independent by construction.",
+      "input": {
+        "step": {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Small"
+        },
+        "lang": "en"
+      },
+      "expected": "Small"
+    },
+    {
+      "id": "unit-count-one",
+      "why": "A whole count renders as a digit, not a fraction, and stays singular — the one case English and French agree on.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 1
+        },
+        "lang": "en"
+      },
+      "expected": "1 carrot"
+    },
+    {
+      "id": "unit-count-two-pluralises",
+      "why": "Ties this suite to english-plural: the unit label is pluralised by that function, not by a second copy of the logic living here.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 2
+        },
+        "lang": "en"
+      },
+      "expected": "2 carrots"
+    },
+    {
+      "id": "unit-count-half-uses-a-fraction-and-pluralises",
+      "why": "THE key divergence from French's \"½ carotte\": English's plural rule fires on 0.5 (anything but exactly 1), so this reads \"½ carrots\" even though the fraction glyph itself is the same one French uses.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.5
+        },
+        "lang": "en"
+      },
+      "expected": "½ carrots"
+    },
+    {
+      "id": "unit-count-quarter-uses-a-fraction-and-pluralises",
+      "why": "The other fraction reachable from the anchor ladder — same divergence as the half case.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.25
+        },
+        "lang": "en"
+      },
+      "expected": "¼ carrots"
+    },
+    {
+      "id": "unit-count-three",
+      "why": "A count with no fraction entry falls back to the digit.",
+      "input": {
+        "step": {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [{ "lang": "en", "text": "carrot" }],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 3
+        },
+        "lang": "en"
+      },
+      "expected": "3 carrots"
+    }
+  ]
+}

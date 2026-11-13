@@ -92,10 +92,11 @@ settle for "still builds".
 
 ## CI notes
 
-No CI pipeline is included yet — see the README's "CI" section for what to set up if you
-add one. If your CI action runner is container-based, note that Node is required in the build image
-even though nothing here is JavaScript, since most Actions-compatible runners execute JS-based actions
-(`actions/checkout`, `actions/upload-artifact`) *inside* the job container — without a `node` binary
+CI lives in `.github/workflows/ci.yml` and runs on GitHub-hosted Ubuntu runners: the SDK is installed by
+`.github/actions/setup-android`, with the same pinned versions as `.ci/Dockerfile`, so the Docker image is
+only for reproducing a build locally. If you point a container-based runner at this repo instead, note that
+Node is required in the build image even though nothing here is JavaScript: JS-based actions
+(`actions/checkout`, `actions/upload-artifact`) run *inside* the job container, and without a `node` binary
 those steps fail at checkout with `exec: "node": executable file not found` (exit 127).
 
 ## Environment notes

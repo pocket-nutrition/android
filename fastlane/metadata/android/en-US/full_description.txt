@@ -1,0 +1,9 @@
+Pocket Nutrition is the native Android client for the Pocket Nutrition project. Search for an ingredient, set a portion and a cooking method, analyse it, and save the result to a local food journal. The interface is available in French and English.
+
+Nutritional values come from the Pocket Nutrition API, which predicts how cooking changes a food's profile and is checked against public reference data. Product photos and data come from Open Food Facts. You can point the app at your own backend server in Settings.
+
+You can also log a meal by voice: the recording is sent to a recognition server that you configure yourself (this feature is off until you do), and the clip is deleted from your phone once the result is back.
+
+The journal lives on your device. The app asks for the camera only to scan barcodes, for the microphone only while you record a meal, and for network access to reach the API.
+
+Pocket Nutrition is free software, released under the MPL-2.0 licence. Source and issue tracker: https://github.com/pocket-nutrition/android

@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Pocket Nutrition API",
+    "title": "OpenFood API",
     "description": "Predicts cooked nutritional profiles from raw ingredients and cooking methods. Results are served from an Elasticsearch cache on repeat queries; cache misses are forwarded to the pocket-nutrition-ml prediction service.",
-    "version": "1.3.0"
+    "version": "2.5.1"
   },
   "servers": [
     {
@@ -17,8 +17,20 @@
       "description": "Nutritional profile prediction"
     },
     {
+      "name": "Reference intakes",
+      "description": "Dietary reference values the clients compute daily targets from"
+    },
+    {
       "name": "Ingredients",
       "description": "Ingredient search and barcode lookup"
+    },
+    {
+      "name": "Relationship votes",
+      "description": "Anonymous confidence votes on curated cooking relationships"
+    },
+    {
+      "name": "Mapping votes",
+      "description": "Anonymous confidence votes on ingredient↔source mapping associations"
     },
     {
       "name": "Feedback",
@@ -26,6 +38,47 @@
     }
   ],
   "paths": {
+    "/relationships/vote": {
+      "post": {
+        "tags": [
+          "Relationship votes"
+        ],
+        "summary": "Upvote or downvote confidence in one curated cooking relationship",
+        "operationId": "vote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelationshipVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Vote recorded",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipVoteTallyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Blank ingredientId/cookingMethod, invalid direction, or unknown sourceSurface",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipVoteTallyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/nutrition": {
       "post": {
         "tags": [
@@ -76,7 +129,107 @@
         }
       }
     },
+    "/mappings/vote": {
+      "post": {
+        "tags": [
+          "Mapping votes"
+        ],
+        "summary": "Upvote or downvote confidence in one ingredient↔source mapping association",
+        "operationId": "vote_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingVoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Vote recorded",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingVoteTallyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown source, blank sourceId/cookingMethod, invalid direction, or unknown sourceSurface",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingVoteTallyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feedback": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "List public feedback reports for one ingredient, newest first",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "ingredientId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reports for the ingredient, with moderation-only fields stripped",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReportsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Blank ingredientId, or offset/limit out of range",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackReportsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Feedback"
@@ -116,6 +269,185 @@
                   "additionalProperties": {
                     "type": "string"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/relationships/votes": {
+      "get": {
+        "tags": [
+          "Relationship votes"
+        ],
+        "summary": "Batch-fetch current vote tallies for a set of cooking relationships",
+        "operationId": "batchVotes",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "Repeated 'ingredientId:cookingMethod' keys",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": "chicken_breast:grilled"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tallies keyed by the requested 'ingredientId:cookingMethod' key, defaulting to {0,0} when untracked",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/RelationshipVoteTallyResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A key is malformed",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/RelationshipVoteTallyResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reference-intakes": {
+      "get": {
+        "tags": [
+          "Reference intakes"
+        ],
+        "summary": "The full EFSA dietary reference table",
+        "description": "Takes no parameter on purpose: the profile (age, sex, weight, pregnancy) never leaves the device. The client caches this response and selects the rows for its user locally.",
+        "operationId": "referenceIntakes",
+        "responses": {
+          "200": {
+            "description": "Every reference value, with its source",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceIntakesResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The reference table has not been loaded on this server yet",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceIntakesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mappings/votes": {
+      "get": {
+        "tags": [
+          "Mapping votes"
+        ],
+        "summary": "Batch-fetch current vote tallies for a set of mapping associations",
+        "operationId": "batchVotes_1",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "description": "Repeated 'source:sourceId:cookingMethod' keys",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": "ciqual:9102:raw"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tallies keyed by the requested 'source:sourceId:cookingMethod' key, defaulting to {0,0} when untracked",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/MappingVoteTallyResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A key is malformed or its source is unknown",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/MappingVoteTallyResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingredients/{id}": {
+      "get": {
+        "tags": [
+          "Ingredients"
+        ],
+        "summary": "Get full reference detail for one ingredient",
+        "description": "Returns the knowledge-base detail behind one ingredient or product — name, food group, reference weight, serving units, and reference nutrition per 100 g. Used to show current known values alongside a correction form (e.g. the feedback dialog).",
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Ingredient id, as returned by /ingredients/search",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ingredient detail",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown ingredient id",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientDetailResponse"
                 }
               }
             }
@@ -258,6 +590,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "description": "Preferred language code (fr, en)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -317,6 +658,58 @@
   },
   "components": {
     "schemas": {
+      "RelationshipVoteRequest": {
+        "type": "object",
+        "description": "An anonymous confidence vote on one curated cooking relationship",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "description": "Canonical ingredient id",
+            "example": "chicken_breast"
+          },
+          "cookingMethod": {
+            "type": "string",
+            "description": "Cooking method the relationship applies to",
+            "example": "grilled"
+          },
+          "direction": {
+            "type": "string",
+            "description": "Vote direction",
+            "example": "up"
+          },
+          "sourceSurface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which client surface this vote came from",
+            "example": "community"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "cookingMethod",
+          "direction"
+        ]
+      },
+      "RelationshipVoteTallyResponse": {
+        "type": "object",
+        "description": "Current confidence tally for one cooking relationship",
+        "properties": {
+          "upvotes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "downvotes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "upvotes",
+          "downvotes"
+        ]
+      },
       "FoodItemRequest": {
         "type": "object",
         "description": "A food item to include in the nutritional prediction",
@@ -352,7 +745,7 @@
           },
           "cookingMethod": {
             "type": "string",
-            "description": "Cooking method applied to the ingredient",
+            "description": "Cooking method applied to the ingredient. Ignored when the resolved ingredient is an Open Food Facts branded product — the response is always the product's own values with cookingMethod=\"raw\" and source=\"off_direct\".",
             "enum": [
               "raw",
               "boiled",
@@ -422,7 +815,8 @@
             ]
           },
           "cookingMethod": {
-            "type": "string"
+            "type": "string",
+            "description": "Cooking method the values reflect. Always \"raw\" when source=\"off_direct\" (the client-requested cooking method is ignored for Open Food Facts branded products)."
           },
           "measuredState": {
             "type": "string",
@@ -654,6 +1048,64 @@
           "available"
         ]
       },
+      "MappingVoteRequest": {
+        "type": "object",
+        "description": "An anonymous confidence vote on one ingredient↔source mapping association",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source database",
+            "example": "ciqual"
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "The source's own identifier for the item",
+            "example": "9102"
+          },
+          "cookingMethod": {
+            "type": "string",
+            "description": "Cooking method / preparation state the mapping applies to",
+            "example": "raw"
+          },
+          "direction": {
+            "type": "string",
+            "description": "Vote direction",
+            "example": "up"
+          },
+          "sourceSurface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which client surface this vote came from",
+            "example": "community"
+          }
+        },
+        "required": [
+          "source",
+          "sourceId",
+          "cookingMethod",
+          "direction"
+        ]
+      },
+      "MappingVoteTallyResponse": {
+        "type": "object",
+        "description": "Current confidence tally for one mapping association",
+        "properties": {
+          "upvotes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "downvotes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "upvotes",
+          "downvotes"
+        ]
+      },
       "FeedbackCorrection": {
         "type": "object",
         "description": "A single structured correction: which aspect is wrong and the proposed value",
@@ -733,11 +1185,395 @@
               "null"
             ],
             "description": "Origin of the result shown to the user (ml/cache/off_direct/…)"
+          },
+          "sourceSurface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which client surface this report came from",
+            "example": "community"
           }
         },
         "required": [
           "name",
           "corrections"
+        ]
+      },
+      "ReferenceIntakeValue": {
+        "type": "object",
+        "description": "One reference value: a nutrient, a population group, a value kind and its bounds",
+        "properties": {
+          "nutrient": {
+            "type": "string",
+            "description": "Nutrient name as EFSA publishes it",
+            "example": "Iron"
+          },
+          "nutrientKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The NutritionalProfileResponse field this value can be compared with, when the units are compatible (e.g. \"ironMg\"). Null when EFSA's unit or definition differs from the journal's (energy in MJ, niacin per MJ, vitamin A in retinol equivalents, added and free sugars versus total sugars).",
+            "example": "ironMg"
+          },
+          "classification": {
+            "type": "string",
+            "description": "EFSA grouping",
+            "example": "Minerals"
+          },
+          "population": {
+            "type": "string",
+            "description": "Population group",
+            "example": "Adults"
+          },
+          "populationDescription": {
+            "type": "string",
+            "description": "Population detail, e.g. a pregnancy trimester or menopause status",
+            "example": "Premenopausal women"
+          },
+          "ageFrom": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Lower bound of the age band"
+          },
+          "ageTo": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Upper bound of the age band (999 = no upper bound)"
+          },
+          "ageUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unit of the age bounds",
+            "enum": [
+              "y",
+              "mo"
+            ]
+          },
+          "ageLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Age band as EFSA labels it, verbatim",
+            "example": "≥ 18 years"
+          },
+          "pal": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Physical activity level, for energy values only",
+            "example": 1.6
+          },
+          "sex": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sex label as EFSA writes it, verbatim",
+            "example": "Male/Female"
+          },
+          "valueKind": {
+            "type": "string",
+            "description": "ai = adequate intake, ar = average requirement, ar_kcal = the same energy requirement in kcal, pri = population reference intake, ri = reference intake range (% of energy), ul = tolerable upper intake level, ssi = safe and sufficient intake",
+            "enum": [
+              "ssi",
+              "ai",
+              "ar",
+              "ar_kcal",
+              "pri",
+              "ri",
+              "ul"
+            ]
+          },
+          "raw": {
+            "type": "string",
+            "description": "The value as EFSA writes it, verbatim (\"11\", \"(+) 70\", \"45–60\", \"ND\")",
+            "example": "11"
+          },
+          "valueMin": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Lower bound, equal to valueMax for a single value; null when EFSA gives no number (ND, NA.)"
+          },
+          "valueMax": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Upper bound; null when EFSA gives no number"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Unit as EFSA writes it",
+            "example": "mg/day"
+          },
+          "sourceLink": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The EFSA scientific opinion the value comes from"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "EFSA's explanatory note for this value"
+          },
+          "isMale": {
+            "type": "boolean"
+          },
+          "isFemale": {
+            "type": "boolean"
+          },
+          "isIncrement": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nutrient",
+          "classification",
+          "population",
+          "populationDescription",
+          "valueKind",
+          "raw",
+          "isMale",
+          "isFemale",
+          "isIncrement"
+        ]
+      },
+      "ReferenceIntakesResponse": {
+        "type": "object",
+        "description": "Dietary reference values for every nutrient and population group, the same full table for every caller (the request carries no personal data); the client picks the rows that match its user",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Where the values come from, for attribution",
+            "example": "EFSA Dietary Reference Values (DRV Finder)"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "Public page of the source",
+            "example": "https://multimedia.efsa.europa.eu/drvs/index.htm"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceIntakeValue"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "sourceUrl",
+          "values"
+        ]
+      },
+      "IngredientDetailResponse": {
+        "type": "object",
+        "description": "Full reference detail for one ingredient from the knowledge base — the current known values a client shows alongside a correction form (e.g. the feedback dialog)",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "description": "Stable ASCII slug identifier, as returned by /ingredients/search",
+            "example": "poulet_filet"
+          },
+          "names": {
+            "type": "array",
+            "description": "Canonical name per available language; empty when the knowledge base has none",
+            "items": {
+              "$ref": "#/components/schemas/LocalizedText"
+            }
+          },
+          "aliases": {
+            "type": "array",
+            "description": "Alternate names / synonyms per language",
+            "items": {
+              "$ref": "#/components/schemas/LocalizedText"
+            }
+          },
+          "foodGroup": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Knowledge-base food group (21-value closed vocabulary); 'other' for OFF products and recipes"
+          },
+          "referenceWeightG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Typical serving size in grams from the knowledge base; null when unavailable"
+          },
+          "displayUnit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Preferred display unit in the UI: 'g' or 'ml'; null means grams"
+          },
+          "servingUnits": {
+            "type": "array",
+            "description": "Available culinary units with gram equivalents; empty when density is unknown",
+            "items": {
+              "$ref": "#/components/schemas/ServingUnit"
+            }
+          },
+          "canEatRaw": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this ingredient can be eaten raw; null when unknown"
+          },
+          "canEatCooked": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether this ingredient can be cooked; null when unknown"
+          },
+          "typicalState": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Typical eating state from the knowledge base: 'raw' or 'cooked'; null when unknown"
+          },
+          "referenceNutrition": {
+            "$ref": "#/components/schemas/ReferenceNutritionResponse"
+          }
+        },
+        "required": [
+          "ingredientId",
+          "names",
+          "aliases",
+          "servingUnits"
+        ]
+      },
+      "LocalizedText": {
+        "type": "object",
+        "description": "One piece of text in one language",
+        "properties": {
+          "lang": {
+            "type": "string",
+            "description": "BCP-47 language code (fr, en, ...)",
+            "example": "fr"
+          },
+          "text": {
+            "type": "string",
+            "description": "The text itself in that language",
+            "example": "Poulet, filet"
+          }
+        },
+        "required": [
+          "lang",
+          "text"
+        ]
+      },
+      "ReferenceNutritionResponse": {
+        "type": "object",
+        "description": "Reference macro-nutrient values per 100 g, from the Ciqual-aligned source",
+        "properties": {
+          "energyKcal": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Energy (kcal) per 100 g"
+          },
+          "proteinG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Protein (g) per 100 g"
+          },
+          "fatG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Total fat (g) per 100 g"
+          },
+          "carbohydratesG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Carbohydrates (g) per 100 g"
+          },
+          "fiberG": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Dietary fibre (g) per 100 g"
+          }
+        },
+        "required": []
+      },
+      "ServingUnit": {
+        "type": "object",
+        "description": "A culinary unit with its gram equivalent for a specific ingredient",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "description": "Unit identifier (e.g. 'teaspoon')",
+            "example": "teaspoon"
+          },
+          "labels": {
+            "type": "array",
+            "description": "Display label per available language; at least one entry",
+            "items": {
+              "$ref": "#/components/schemas/LocalizedText"
+            }
+          },
+          "volumeMl": {
+            "type": "number",
+            "format": "double",
+            "description": "Volume in mL",
+            "example": 5.0
+          },
+          "grams": {
+            "type": "number",
+            "format": "double",
+            "description": "Mass in grams (volume_ml × density_g_ml)",
+            "example": 6.0
+          }
+        },
+        "required": [
+          "unit",
+          "labels",
+          "volumeMl",
+          "grams"
         ]
       },
       "IngredientSuggestionWithNutrition": {
@@ -861,18 +1697,12 @@
             ],
             "description": "Natural measurement mode: 'item' = countable whole units, 'weight' = grams, 'volume' = mL, 'measure' = culinary units; null = weight by default"
           },
-          "unitLabelFr": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "French display label for one whole unit when serving_mode is 'item' (e.g. 'oeuf')"
-          },
-          "unitLabelEn": {
-            "type": [
-              "string",
-              "null"
-            ]
+          "unitLabels": {
+            "type": "array",
+            "description": "Display label for one whole unit per available language, when serving_mode is 'item' (e.g. 'oeuf'/'egg')",
+            "items": {
+              "$ref": "#/components/schemas/LocalizedText"
+            }
           },
           "recipeComponents": {
             "type": [
@@ -889,7 +1719,8 @@
           "ingredientId",
           "label",
           "lang",
-          "servingUnits"
+          "servingUnits",
+          "unitLabels"
         ]
       },
       "RecipeComponentResponse": {
@@ -918,54 +1749,83 @@
           "ingredient"
         ]
       },
-      "ServingUnit": {
+      "FeedbackReportResponse": {
         "type": "object",
-        "description": "A culinary unit with its gram equivalent for a specific ingredient",
+        "description": "One public feedback report about an ingredient — moderation-only fields (reporter name, IP hash, user agent, status) are never exposed here",
         "properties": {
-          "unit": {
-            "type": "string",
-            "description": "Unit identifier (e.g. 'teaspoon')",
-            "example": "teaspoon"
+          "id": {
+            "type": "integer",
+            "format": "int64"
           },
-          "labelFr": {
-            "type": "string",
-            "description": "French display label",
-            "example": "c.à.c."
+          "corrections": {
+            "type": "array",
+            "description": "Structured corrections attached to this report (may be empty for a comment-only report)",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackCorrection"
+            }
           },
-          "labelEn": {
+          "comment": {
             "type": [
               "string",
               "null"
-            ],
-            "description": "English display label",
-            "example": "tsp"
+            ]
           },
-          "volumeMl": {
-            "type": "number",
-            "format": "double",
-            "description": "Volume in mL",
-            "example": 5.0
+          "cookingMethod": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
-          "grams": {
-            "type": "number",
-            "format": "double",
-            "description": "Mass in grams (volume_ml × density_g_ml)",
-            "example": 6.0
+          "measuredState": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceSurface": {
+            "type": "string",
+            "description": "Which client surface this report came from",
+            "example": "community"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
-          "unit",
-          "labelFr",
-          "volumeMl",
-          "grams"
+          "id",
+          "corrections",
+          "sourceSurface",
+          "createdAt"
+        ]
+      },
+      "FeedbackReportsResponse": {
+        "type": "object",
+        "description": "A page of public feedback reports for one ingredient",
+        "properties": {
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedbackReportResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of reports for this ingredient, for deciding whether to offer 'load more'"
+          }
+        },
+        "required": [
+          "reports",
+          "total"
         ]
       }
     }
   },
   "x-pn-overlay": {
-    "contractsVersion": "1.8.0",
+    "contractsVersion": "2.3.1",
     "overlayVersion": 1,
-    "upstreamContractVersion": "1.3.0",
+    "upstreamContractVersion": "2.5.1",
     "generatedBy": "scripts/patch_spec.py",
     "note": "Generated file. Edit overlay.yaml and re-run; never edit this document."
   }

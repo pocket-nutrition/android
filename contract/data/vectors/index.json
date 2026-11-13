@@ -1,7 +1,7 @@
 {
   "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
   "note": "Behavioural corpus shared by the sandbox, Android and iOS. A consumer should assert on the full id set of each suite, not only the cases it happens to implement, so a skipped case fails loudly instead of passing silently.",
-  "totalCases": 144,
+  "totalCases": 275,
   "suites": [
     {
       "suite": "rounding",
@@ -13,7 +13,7 @@
       "suite": "yield-factor",
       "file": "yield-factor.json",
       "cases": 5,
-      "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the pocket-nutrition-ml router."
+      "description": "Resolves the cooked/raw weight ratio from Knowledge only: method-specific key, then the generic \"cooked\" key, then 1. Never invents a factor — a missing yield is a gap to report through the feedback channel, not to guess in the client. Mirrors the ml router."
     },
     {
       "suite": "french-number",
@@ -22,16 +22,34 @@
       "description": "French decimal comma; integers carry no decimal part. Do NOT implement this with a locale-aware formatter — those add thousands separators and vary by platform and OS version. The rule is literally \"stringify, then replace . with ,\"."
     },
     {
+      "suite": "english-number",
+      "file": "english-number.json",
+      "cases": 6,
+      "description": "English decimal point — the mirror image of french-number: stringify, no comma substitution. Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
+    },
+    {
       "suite": "french-plural",
       "file": "french-plural.json",
       "cases": 6,
       "description": "Naive French plural: append \"s\" from 2 upwards, unless the word already ends in \"s\". Real plural forms belong in Knowledge (set_ingredient_plural); until they exist all clients must be wrong in exactly the same way, which is what these vectors enforce."
     },
     {
+      "suite": "english-plural",
+      "file": "english-plural.json",
+      "cases": 6,
+      "description": "Naive English plural: append \"s\" for every count except exactly 1, unless the word already ends in \"s\" — a genuinely different rule from french-plural, not a translation of it (English pluralises \"1.5 carrots\", French keeps \"1,5 carotte\" singular). Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
+    },
+    {
       "suite": "step-label",
       "file": "step-label.json",
       "cases": 6,
       "description": "Label for one scale step. A factor step carries its own label verbatim. A unit step renders \"<count> <unit>\", the count replaced by a typographic fraction for 0.25 / 0.33 / 0.5 / 0.75 and the unit pluralised. The fraction table is keyed on the count, not on the factor."
+    },
+    {
+      "suite": "step-label-en",
+      "file": "step-label-en.json",
+      "cases": 6,
+      "description": "The English wording of step-label, composed from english-plural instead of french-plural. At counts 0.25 and 0.5 this diverges from the French suite: English pluralises (\"¼ carrots\"), French does not (\"¼ carotte\"). Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
     },
     {
       "suite": "serving-unit-emoji",
@@ -52,6 +70,12 @@
       "description": "The coarse anchor set behind the collapsed-row summary. Countable foods — servingMode \"item\" AND an item serving unit present — get item counts 0.5/1/2/3, dropping any below 5 g. Everything else gets the five named portion factors, dropping any below 1 g. Both filters exist so no button resolves to nothing."
     },
     {
+      "suite": "build-anchors-en",
+      "file": "build-anchors-en.json",
+      "cases": 6,
+      "description": "The English wording of build-anchors: ¼ / Small / 1 serving / Large / Double, mirroring ¼ / Petite / 1 part / Grande / Double. Same branch logic; only the weight-mode labels and the ServingUnit shape (labels: [{lang, text}], not labelFr/labelEn) differ. Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
+    },
+    {
       "suite": "step-raw-weight",
       "file": "step-raw-weight.json",
       "cases": 3,
@@ -64,16 +88,28 @@
       "description": "The collapsed-row quantity summary. Three branches, tried in order: (1) within 4 % of an anchor, but never closer than 2 g, use that anchor's clean label; (2) otherwise an \"≈ descriptor\" headline, by item count when an item unit is known, else by portion ratio, snapping to a named anchor when within 8 %; (3) otherwise grams alone with an empty secondary line. Weights under 1 render \"< 1g\" / \"< 1 mL\", never \"0g\"."
     },
     {
+      "suite": "describe-quantity-en",
+      "file": "describe-quantity-en.json",
+      "cases": 12,
+      "description": "The English wording of describe-quantity, composed from english-number and english-plural. Diverges from the French suite at the item-descriptor cases: English's singular boundary is exactly count 1, not \"below 2\", so the counts chosen to reach it differ (75 g / 160 g rather than 81 g / 160 g). Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
+    },
+    {
       "suite": "shortcut-profile",
       "file": "shortcut-profile.json",
       "cases": 8,
       "description": "The row of at most four quick buttons under the value field. With no usable serving unit it is the three base-portion multipliers (Demi / 1 Part / Double). With at least one, it becomes a single \"1 Part\" anchor plus up to three Knowledge increments. The item unit is excluded because the multipliers already cover it, and units rounding below 1 are dropped. INVARIANT: the result always has between 2 and 4 entries. The client never invents a volumetric unit — an absent one is a gap to fill in Knowledge."
     },
     {
+      "suite": "shortcut-profile-en",
+      "file": "shortcut-profile-en.json",
+      "cases": 8,
+      "description": "The English wording of shortcut-profile: Half / 1 Serving / Double, mirroring Demi / 1 Part / Double — a different label set from build-anchors-en's, same as the French pair. Same branch logic; only the fallback labels and the ServingUnit shape (labels: [{lang, text}]) differ. Added in contract 2.0.0. Hand-authored; the sandbox stays French-only and has no English reference implementation."
+    },
+    {
       "suite": "deduplicate-suggestions",
       "file": "deduplicate-suggestions.json",
-      "cases": 15,
-      "description": "Turns a raw search response into the list a client renders. Four rules and the order between them is the contract: (1) recipes are lifted out first, always lead, and are never deduplicated away; (2) results in the requested language come first ONLY when there are at least 3 of them — below that the server order is kept whole, NOT same-language-first, so a port that always sorts by language is wrong; (3) the remainder is deduplicated by lowercased+trimmed label, first occurrence winning, AND by brand alongside the label — two products of the same name from different brands are separate rows, the same name and brand is noise, and a brandless product keys on the label alone so it collapses into the curated ingredient of that name; (4) the result is capped, and recipes count toward the cap but are never dropped by it, so an all-recipe response may exceed it. Recipe labels are NOT added to the seen set, so a recipe and an ingredient with the same label both survive. Deduplication is never by ingredientId, which is unique per row and would dedupe nothing."
+      "cases": 17,
+      "description": "Turns a raw search response into the list a client renders. Four rules and the order between them is the contract: (1) recipes are lifted out first, always lead, and are never deduplicated away; (2) results in the requested language come first ONLY when there are at least 3 of them — below that the server order is kept whole, NOT same-language-first, so a port that always sorts by language is wrong; (3) the remainder is deduplicated by lowercased+trimmed label, first occurrence winning, AND by brand alongside the label — two products of the same name from different brands are separate rows, the same name and brand is noise, and a brandless product keys on the label alone so it collapses into the curated ingredient of that name; (4) the result is capped, and recipes count toward the cap but are never dropped by it, so an all-recipe response may exceed it. Recipe labels are NOT added to the seen set, so a recipe and an ingredient with the same label both survive. Deduplication is never by ingredientId, which is unique per row and would dedupe nothing. Two cases added in contract 2.0.0 mirror the language-threshold cases with preferLang \"en\", proving the preference is a genuine parameter rather than a value hardcoded to French."
     },
     {
       "suite": "selection-mode",
@@ -104,6 +140,72 @@
       "file": "switch-measured-state.json",
       "cases": 6,
       "description": "Reinterprets a weight as a pre- or post-cooking measurement, converting it so it still describes the same food: multiply by the yield going to \"cooked\", divide coming back to \"raw\" — the same direction convention as apply-method-change branch 1, so the two compose without a sign error. A row already in the requested state is returned untouched rather than converted twice, which is load-bearing: a toggle re-emitting its current value is normal, and without the guard every such event would rescale the weight again. The yield comes from resolveYieldFactor, so a raw method and absent Knowledge data both give factor 1."
+    },
+    {
+      "suite": "meal-slot",
+      "file": "meal-slot.json",
+      "cases": 9,
+      "description": "Which part of the day a meal belongs to, from its local time in minutes since midnight. Half-open bands: breakfast [240, 630), lunch [630, 900), dinner [1050, 1350), snack for everything else."
+    },
+    {
+      "suite": "meal-slot-default-time",
+      "file": "meal-slot-default-time.json",
+      "cases": 4,
+      "description": "The time (minutes since midnight) given to a meal filed under a slot when it is not logged now: another day, or a slot picked by hand. A typical moment inside each band."
+    },
+    {
+      "suite": "scale-dish-quantity",
+      "file": "scale-dish-quantity.json",
+      "cases": 6,
+      "description": "Grams of one ingredient of a dish saved for `servings` portions when `parts` portions are eaten: quantityG x parts / servings, rounded half-up to one decimal. servings <= 0 counts as 1."
+    },
+    {
+      "suite": "parse-quick-add-kcal",
+      "file": "parse-quick-add-kcal.json",
+      "cases": 10,
+      "description": "Reads a calorie figure typed in the search field for quick add: a whole number 1-5000, optionally followed by \"kcal\" (any case, optional space). Anything else returns null."
+    },
+    {
+      "suite": "rank-recents",
+      "file": "rank-recents.json",
+      "cases": 6,
+      "description": "Orders past foods for the empty search screen: most uses in the current slot, then most uses overall, then most recent use (`at`, seconds), then key ascending. Distinct keys, at most `limit`."
+    },
+    {
+      "suite": "daily-targets",
+      "file": "daily-targets.json",
+      "cases": 16,
+      "description": "Daily nutrient targets for one person from the EFSA rows served by GET /reference-intakes. Select rows: population Adults (age >= 18) or Children, age band ageFrom <= age <= ageTo in years, sex from the basis (pregnancy and lactation force female; \"average\" computes female and male completely, then averages each field). Variants: energy keeps the row whose pal equals the profile PAL; zinc keeps \"(LPI n mg/day)\" with n = phytateMgPerDay (600 when absent); \"Postmenopausal\" rows are kept only when the profile is postmenopausal AND such a row matches the age, otherwise they are dropped. Rows with no number (ND, NA.) and rows whose nutrientKey is null are ignored. Fields: ar_kcal -> energy point target (min = max); pri, else ai -> min; ri -> min/max range; ul -> upperLimit; ar in other units and ssi are not targets. Pregnancy and lactation rows (matched on \"Nth trimester\" or \"0–6\"/\">6 months post partum\" when the description names a period) are added to the base value when isIncrement, else replace it. Units: g/kg bw per day x weightKg; E% x energy target / (100 x kcal per g: carbohydrates 4, protein 4, fat 9, saturated fat 9), after any energy increment; g/mg/µg per day converted to the key's unit (suffix Kcal, G, Mg, Ug); U+03BC and U+00B5 are the same micro sign. Rounding half-up: kcal and g to whole numbers, mg and µg to one decimal. Output sorted by nutrientKey; sources are the links of the rows used, sorted and de-duplicated (a replaced base row is not cited). Under 1 year, and pregnancy or lactation under 18, are unsupported."
+    },
+    {
+      "suite": "weight-for-day",
+      "file": "weight-for-day.json",
+      "cases": 7,
+      "description": "The weight targets use on a day: the mean of the weight entries dated in the 7 calendar days ending on that day (day - 6 to day, both inclusive), rounded half-up to one decimal; with none in that window, the most recent earlier entry as logged; with none at all, null. Entries after the day are ignored. Dates are local \"YYYY-MM-DD\" strings. Ports compute the mean first, then round; the corpus avoids exact .x5 means, which binary floating point cannot hold."
+    },
+    {
+      "suite": "profile-for-day",
+      "file": "profile-for-day.json",
+      "cases": 8,
+      "description": "The profile in force on a day, ready for daily-targets: the version with the latest effectiveFrom on or before the day (among equal dates, the last in the list); ageYears = the day's calendar year minus birthYear; weightKg = weight-for-day of the weight log when it is not null, else the version's own weightKg. Optional fields (trimester, lactation, postmenopausal, phytateMgPerDay) are copied only when the version has them. Null before the first version."
+    },
+    {
+      "suite": "apply-target-overrides",
+      "file": "apply-target-overrides.json",
+      "cases": 7,
+      "description": "User overrides on top of the computed targets. The override version in force on the day is the latest effectiveFrom on or before it (last in the list among equal dates); each version is a complete snapshot, so a version with no values resets everything to the computed targets. An override replaces min and max and keeps upperLimit and sources; an override on a key with no computed target adds one with unit from the key suffix (Kcal -> kcal, Ug -> µg, Mg -> mg, else g), upperLimit null and no source. Every target carries overridden; sorted by nutrientKey."
+    },
+    {
+      "suite": "day-progress",
+      "file": "day-progress.json",
+      "cases": 7,
+      "description": "Progress of a day toward its targets, one entry per requested key, in the requested order. A meal's nutrient is unknown when its key is absent, and an unknown is never counted as 0: knownMeals counts the meals that have it. total = the sum of known values rounded half-up (kcal and g whole, mg and µg one decimal), null when no meal knows it. With t = the unrounded known sum (0 when unknown): reference = min, else max; percent = round-half-up(t / reference x 100), null with no reference. status: no min and no max -> no-target; t < min -> under; max set and t > max -> over; else ok. aboveUpperLimit = upperLimit set and t > upperLimit. unit from the target, else from the key suffix (Kcal -> kcal, Ug -> µg, Mg -> mg, else g)."
+    },
+    {
+      "suite": "self-comparison",
+      "file": "self-comparison.json",
+      "cases": 5,
+      "description": "Today against the person's own recent days, for a nutrient with no target. Window: the 7 calendar days before the day (day - 7 to day - 1, inclusive), excluding the day itself; days whose total is null are skipped, not counted as 0. average = their mean rounded half-up to one decimal, null when there are none; percentOfAverage = round-half-up(total / unrounded mean x 100), null when total is null or the mean is 0."
     }
   ]
 }

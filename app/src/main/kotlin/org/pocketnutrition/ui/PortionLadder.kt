@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.withTimeoutOrNull
+import org.pocketnutrition.api.LanguageSettings
 import org.pocketnutrition.core.MealIngredient
 import org.pocketnutrition.core.Shortcut
 import org.pocketnutrition.core.design.PnColor
@@ -111,7 +112,7 @@ fun PortionLadder(row: MealIngredient, onChange: (MealIngredient) -> Unit) {
         // Equal width now rather than a horizontal scroller, since the corpus caps this row at four
         // entries and the sandbox's own layout assumes exactly that.
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            shortcutProfile(row.servingUnits, row.displayUnit).forEach { shortcut ->
+            shortcutProfile(row.servingUnits, row.displayUnit, LanguageSettings.effective).forEach { shortcut ->
                 when (shortcut) {
                     is Shortcut.Multiplier ->
                         // Active state, not on the increments below: a multiplier sets an absolute

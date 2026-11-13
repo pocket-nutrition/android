@@ -48,9 +48,12 @@ import org.pocketnutrition.core.design.PnRadius
  *
  * WHAT THIS SCREEN MUST NOT DO
  * The copy is a *summary* of the hosted policy; if the two disagree, the app is making a privacy
- * claim nobody reviewed. [Fr.ABOUT_PRIVACY_SUMMARY] is deliberately paired with
- * [Fr.ABOUT_PRIVACY_NETWORK]: the first sentence alone reads as "nothing ever leaves the phone",
+ * claim nobody reviewed. [Strings.active.ABOUT_PRIVACY_SUMMARY] is deliberately paired with
+ * [Strings.active.ABOUT_PRIVACY_NETWORK]: the first sentence alone reads as "nothing ever leaves the phone",
  * which is false — searching and analysing both make requests. Ship the pair or neither.
+ *
+ * The language switcher and server override used to live here too; contract 2.1.0 split them into
+ * [SettingsScreen] so the journal's menu can offer About and Settings as two distinct entries.
  *
  * The iOS client renders the same sections from the same contract keys.
  */
@@ -69,7 +72,7 @@ fun AboutScreen(onClose: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = Fr.ABOUT_TITLE,
+                text = Strings.active.ABOUT_TITLE,
                 color = PnColor.InkDefault,
                 fontFamily = FontFamily.Serif,
                 fontSize = 24.sp,
@@ -77,7 +80,7 @@ fun AboutScreen(onClose: () -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onClose) {
-                Text(Fr.ABOUT_CLOSE, color = PnColor.BrandLeafDeep, fontSize = 14.sp)
+                Text(Strings.active.ABOUT_CLOSE, color = PnColor.BrandLeafDeep, fontSize = 14.sp)
             }
         }
 
@@ -90,35 +93,35 @@ fun AboutScreen(onClose: () -> Unit) {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = Fr.BRAND,
+                    text = Strings.active.BRAND,
                     color = PnColor.InkDefault,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 // From BuildConfig rather than a literal, so it cannot disagree with what Play shows.
                 Text(
-                    text = Fr.aboutVersion(BuildConfig.VERSION_NAME),
+                    text = Strings.active.aboutVersion(BuildConfig.VERSION_NAME),
                     color = PnColor.InkSoft,
                     fontSize = 13.sp,
                 )
             }
 
-            Section(Fr.ABOUT_PRIVACY_TITLE) {
-                Paragraph(Fr.ABOUT_PRIVACY_SUMMARY)
-                Paragraph(Fr.ABOUT_PRIVACY_NETWORK)
-                LinkRow(Fr.ABOUT_PRIVACY_LINK, PRIVACY_POLICY_URL)
+            Section(Strings.active.ABOUT_PRIVACY_TITLE) {
+                Paragraph(Strings.active.ABOUT_PRIVACY_SUMMARY)
+                Paragraph(Strings.active.ABOUT_PRIVACY_NETWORK)
+                LinkRow(Strings.active.ABOUT_PRIVACY_LINK, PRIVACY_POLICY_URL)
             }
 
-            Section(Fr.ABOUT_SOURCES_TITLE) {
-                Paragraph(Fr.ABOUT_SOURCES_BODY)
+            Section(Strings.active.ABOUT_SOURCES_TITLE) {
+                Paragraph(Strings.active.ABOUT_SOURCES_BODY)
             }
 
-            Section(Fr.ABOUT_LICENCE_TITLE) {
-                Paragraph(Fr.ABOUT_LICENCE_BODY)
-                LinkRow(Fr.ABOUT_SOURCE_LINK, SOURCE_URL)
+            Section(Strings.active.ABOUT_LICENCE_TITLE) {
+                Paragraph(Strings.active.ABOUT_LICENCE_BODY)
+                LinkRow(Strings.active.ABOUT_SOURCE_LINK, SOURCE_URL)
 
                 Text(
-                    text = Fr.ABOUT_THIRD_PARTY_TITLE,
+                    text = Strings.active.ABOUT_THIRD_PARTY_TITLE,
                     color = PnColor.InkDefault,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -131,7 +134,7 @@ fun AboutScreen(onClose: () -> Unit) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -153,7 +156,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Paragraph(text: String) {
+internal fun Paragraph(text: String) {
     Text(text = text, color = PnColor.InkSoft, fontSize = 13.sp, lineHeight = 19.sp)
 }
 
@@ -185,10 +188,6 @@ private fun LinkRow(label: String, url: String) {
 /** The same URL the Play listing declares. */
 private const val PRIVACY_POLICY_URL = "https://website.pocketnutrition.org/privacy.html"
 
-/**
- * Verified reachable **unauthenticated** before shipping. A source link behind a login would make
- * [Fr.ABOUT_LICENCE_BODY] untrue in practice, which is the one thing this screen cannot be.
- */
 private const val SOURCE_URL = "https://github.com/pocket-nutrition/android"
 
 /**
@@ -205,5 +204,9 @@ internal val THIRD_PARTY_COMPONENTS = listOf(
     "Kotlin et kotlinx.serialization — Apache License 2.0",
     "Coil — Apache License 2.0",
     "OkHttp — Apache License 2.0",
-    "ML Kit (Google) — Apache License 2.0",
+    "ZXing — Apache License 2.0",
+    "libsodium — ISC License",
+    "Lazysodium — Mozilla Public License 2.0",
+    "JNA (Java Native Access) — Apache License 2.0",
+    "EFF long wordlist — Creative Commons Attribution 3.0 US License",
 )

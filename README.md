@@ -24,6 +24,12 @@ it, so the URL currently returns the home page with a 200. There are no instrume
 What was built first is the part that is hard to add later: contract pinning, the vendored corpus, the
 generated design tokens, and a signing path that fails loudly rather than silently shipping unsigned.
 
+Since the first public release the app is also bilingual (French and English), has a Settings screen to
+point it at your own backend server, and can capture a meal by voice: the clip is recorded only while you
+hold Record, uploaded to a recognition server you configure in Settings, and kept on the phone just until
+the result has come back. It is off until a server is set. Barcode scanning now decodes with ZXing instead
+of Google ML Kit, so the whole dependency tree is free software.
+
 ## Why not cross-platform
 
 Two native apps, deliberately. What this product shares between clients is its *data* and its
@@ -39,7 +45,7 @@ would couple the two apps' release cycles and UI idioms to buy sharing we alread
 | UI | Compose (BOM 2026.06) + Material 3 |
 | Min / target SDK | 26 / 37 |
 | Build | Gradle 9.6 + AGP 9.3, version catalogue in `gradle/libs.versions.toml` |
-| CI | None included yet — see "CI" below |
+| CI | GitHub Actions — see "CI" below |
 
 `minSdk 26` is chosen so `java.time` is available without desugaring: the diary is date-keyed, and date
 arithmetic is not somewhere to accept a shim.
@@ -144,16 +150,24 @@ below; what remains are ordinary packaging requirements.
 | Channel | Status |
 |---|---|
 | GitHub Releases (signed APK) | recommended primary channel — attach the built APK plus a `.sha256` companion |
-| F-Droid | a good fit: MPL-2.0 is an accepted free licence, every dependency is Apache-2.0 and there is no Play Services |
+| F-Droid | MPL-2.0 is an accepted free licence, there is no Play Services, and the barcode scanner uses ZXing (Apache-2.0) rather than Google ML Kit, which F-Droid would have rejected. The release dependency tree contains no Google Play Services, Firebase or ML Kit artifact. A recipe still has to be submitted to `fdroiddata`. Fastlane metadata is in `fastlane/metadata/android/` |
 | Google Play | workable, but requires an **AAB** — you'd need a `bundleRelease`-based build step, not just `assembleRelease` |
 | Apple App Store | **viable** for the iOS client under MPL-2.0 — removing the AGPL §10/§6 conflict is why the client tier was relicensed |
 
 ## CI
 
-No CI pipeline is included yet. Recommended: a GitHub Actions workflow under `.github/workflows/`
-that runs the contract-drift check (`./scripts/sync-contracts.sh --verify`), `./gradlew
-testDebugUnitTest`, and `./gradlew assembleDebug` + `lintDebug` on every push/PR, plus a
-tag-triggered signed-release job using the secrets listed above.
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`:
+
+- **Contract pin**: `./scripts/sync-contracts.sh --verify`
+- **Unit tests**: `./gradlew testDebugUnitTest`
+- **Build and lint**: `assembleDebug`, `lintDebug`, and `bundleRelease` (exercises R8, unsigned)
+- **ci-success**: the single required status check; it fails if any gate above failed
+
+Pull requests from forks run with a read-only token and no secrets, and wait for a maintainer to approve
+the run. A push to `main` additionally creates a CalVer release `vYYYY.M.N` (for example `v2026.11.3`; N
+restarts at 1 each month) with the **debug** APK and its `.sha256` attached. `versionName` is the tag
+without the `v`; `versionCode` is `YYYYMMNN`. No signing key is involved, so these APKs are for testing,
+not for installing as an update to a signed build.
 
 ## Contributing
 

@@ -1,0 +1,67 @@
+{
+  "suite": "scale-dish-quantity",
+  "description": "Grams of one ingredient of a dish saved for `servings` portions when `parts` portions are eaten: quantityG x parts / servings, rounded half-up to one decimal. servings <= 0 counts as 1.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "one-serving-one-part",
+      "why": "A single-portion dish applied once gives the saved quantity back unchanged.",
+      "input": {
+        "quantityG": 120,
+        "servings": 1,
+        "parts": 1
+      },
+      "expected": 120
+    },
+    {
+      "id": "quarter-of-batch",
+      "why": "Batch cooking: one part of a gratin saved for four portions is a quarter of each ingredient.",
+      "input": {
+        "quantityG": 800,
+        "servings": 4,
+        "parts": 1
+      },
+      "expected": 200
+    },
+    {
+      "id": "half-part",
+      "why": "The ½ step of the portion stepper halves a single-portion dish.",
+      "input": {
+        "quantityG": 150,
+        "servings": 1,
+        "parts": 0.5
+      },
+      "expected": 75
+    },
+    {
+      "id": "one-decimal-rounding",
+      "why": "Oil split in three gives 3.3 g, not 3.3333: one decimal, so both apps show the same figure.",
+      "input": {
+        "quantityG": 10,
+        "servings": 3,
+        "parts": 1
+      },
+      "expected": 3.3
+    },
+    {
+      "id": "half-up-on-the-decimal",
+      "why": "0.25 g rounds half-up to 0.3 g, never banker's rounding to 0.2: the corpus-wide tie rule applies here too.",
+      "input": {
+        "quantityG": 1,
+        "servings": 4,
+        "parts": 1
+      },
+      "expected": 0.3
+    },
+    {
+      "id": "zero-servings-is-one",
+      "why": "A dish saved with 0 servings (corrupt or legacy data) is read as one portion, never a division by zero.",
+      "input": {
+        "quantityG": 90,
+        "servings": 0,
+        "parts": 1
+      },
+      "expected": 90
+    }
+  ]
+}

@@ -37,7 +37,7 @@ class StepRawWeightVectorTest {
     fun `a unit step ignores the base portion entirely`() {
         // The corpus passes 75 every time, so a port that multiplied by the base would need only
         // that one value changed to be caught. Asserted across three wildly different bases.
-        val carrot = ServingUnit("item", "carotte", 0.0, 74.0)
+        val carrot = ServingUnit("item", listOf(LocalizedText("fr", "carotte")), 0.0, 74.0)
         listOf(0.0, 75.0, 1000.0).forEach { base ->
             assertEquals(
                 "base portion $base must not affect a unit step",

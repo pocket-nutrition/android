@@ -31,24 +31,34 @@ android {
     namespace = "org.pocketnutrition"
     compileSdk = 37
 
+    // AGP otherwise embeds an opaque, Google-encrypted blob listing the app's dependencies in every APK
+    // and bundle. F-Droid rejects it as a binary it cannot audit, and nothing here reads it.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId = "org.pocketnutrition"
         // 26 rather than a lower floor so java.time is available without desugaring — the food diary
         // is date-keyed, and LocalDate arithmetic is not somewhere to accept a shim.
         minSdk = 26
         targetSdk = 37
-        // CalVer: YYYY.MM.PATCH, matching the git tag (tag "v2026.08.1" -> versionName "2026.08.1").
+        // CalVer. The git tag is `vYYYY.M.N` with a single-digit month (v2026.9.1, v2026.11.3); N restarts
+        // at 1 every month and CI mints the tag for every commit on main.
         //
-        // versionCode has to be a monotonically increasing Int, and a store rejects any upload that does
-        // not strictly exceed the last one, so it is derived from the same three numbers rather than
-        // maintained separately: YYYYMM * 100 + PATCH. That orders correctly across month and year
-        // boundaries (2026.08.1 -> 20260801, then 2026.09.1 -> 20260901, then 2027.01.1 -> 20270101) and
-        // leaves room for 99 releases within a month, well under the 2_100_000_000 store ceiling.
+        // versionName is the tag without the `v`. versionCode has to be a monotonically increasing Int,
+        // and a store rejects any upload that does not strictly exceed the last one, so it is derived
+        // from the same three numbers: YYYYMM * 100 + N, with the month zero-padded to two digits here
+        // even though the tag does not pad it. That orders correctly across month and year boundaries
+        // (v2026.8.1 -> 20260801, v2026.9.1 -> 20260901, v2027.1.1 -> 20270101) and leaves room for 99
+        // releases within a month, well under the 2_100_000_000 store ceiling.
         //
-        // Bump both together and keep them in step with the tag: an artefact that misreports its own
-        // version cannot be traced back to the commit that built it.
-        versionCode = 20_260_804
-        versionName = "2026.08.4"
+        // CI passes both as `-PversionName=... -PversionCode=...` so the artefact reports the tag that
+        // built it. The literals below are only the defaults for local builds, where no tag exists yet;
+        // they do not need bumping per release.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 20_260_804
+        versionName = (findProperty("versionName") as String?) ?: "2026.8.4"
     }
 
     signingConfigs {
@@ -163,13 +173,23 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
-    // Barcode scanning: CameraX for the live preview/frame pipeline, ML Kit for on-device decoding.
+    // Barcode scanning: CameraX for the live preview/frame pipeline, ZXing for on-device decoding.
     // See the version catalogue for why this was chosen over the Play-Services Code Scanner.
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
-    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.zxing.core)
+    // Meal photos: orientation from EXIF, with the maintained parser (the photo is untrusted input).
+    implementation(libs.androidx.exifinterface)
+
+    // End-to-end-encrypted vault: libsodium through Lazysodium. See the version catalogue for the
+    // choice. lazysodium-android's POM asks for JNA as a jar, which carries desktop dispatchers and
+    // clashes with the Android one, so that edge is cut and JNA is taken as its aar instead.
+    implementation(libs.lazysodium.android) { exclude(group = "net.java.dev.jna") }
+    implementation(variantOf(libs.jna) { artifactType("aar") })
 
     testImplementation(libs.junit)
+    // The JVM flavour of the same binding, so unit tests run the real libsodium against the vectors.
+    testImplementation(libs.lazysodium.java)
 }

@@ -47,6 +47,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshotFlow
+import org.pocketnutrition.recognition.CaptureCoordinator
+import org.pocketnutrition.recognition.EntryState
+import org.pocketnutrition.recognition.EntryStore
+import org.pocketnutrition.recognition.defaultSelection
+import org.pocketnutrition.recognition.deleteCapture
+import org.pocketnutrition.recognition.resolveImport
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -79,6 +86,7 @@ import org.pocketnutrition.api.ApiException
 import org.pocketnutrition.api.FeedbackCorrection
 import org.pocketnutrition.api.FeedbackRequest
 import org.pocketnutrition.api.IngredientDetail
+import org.pocketnutrition.api.LanguageSettings
 import org.pocketnutrition.api.NutritionalProfile
 import org.pocketnutrition.api.PocketNutritionApi
 import org.pocketnutrition.core.FEEDBACK_CATEGORIES
@@ -97,15 +105,29 @@ import org.pocketnutrition.core.design.PnRadius
 import org.pocketnutrition.core.design.PnRole
 import org.pocketnutrition.core.feedbackCurrentValue
 import org.pocketnutrition.core.foodGroupIcon
-import org.pocketnutrition.core.formatFrenchNumber
+import org.pocketnutrition.core.formatNumber
 import org.pocketnutrition.core.resolveYieldFactor
 import org.pocketnutrition.core.shouldToggleSelection
 import org.pocketnutrition.core.switchMeasuredState
 import org.pocketnutrition.core.unpackRecipe
+import org.pocketnutrition.model.BuilderEntry
 import org.pocketnutrition.model.MealItem
+import org.pocketnutrition.model.MealShortcutsStore
+import org.pocketnutrition.model.SavedMeal
+import org.pocketnutrition.model.asMealIngredient
+import org.pocketnutrition.model.isQuickAddRow
+import org.pocketnutrition.model.quickAddRow
+import org.pocketnutrition.model.recentFoods
+import org.pocketnutrition.core.MealSlot
+import org.pocketnutrition.core.defaultTimeFor
+import org.pocketnutrition.core.mealSlotAt
+import org.pocketnutrition.core.parseQuickAddKcal
+import androidx.compose.runtime.mutableLongStateOf
 import org.pocketnutrition.model.asMealItem
+import org.pocketnutrition.model.withAvailability
 import org.pocketnutrition.model.asMealRow
 import org.pocketnutrition.model.asRequest
+import org.pocketnutrition.model.lockedToRawIfIndustrial
 import org.pocketnutrition.model.summary
 
 /**
@@ -134,8 +156,20 @@ import org.pocketnutrition.model.summary
 @Composable
 fun MealBuilderScreen(
     onCancel: () -> Unit,
-    onAnalysed: (List<NutritionalProfile>, List<MealItem>) -> Unit,
+    onAnalysed: (List<NutritionalProfile>, List<MealItem>, AnalysedMeal) -> Unit,
     initialItems: List<MealIngredient> = emptyList(),
+    /** When the meal was eaten and its part of the day; the chip under the title changes either. */
+    initialAtEpochMs: Long = System.currentTimeMillis(),
+    initialSlot: MealSlot = mealSlotAt(initialAtEpochMs),
+    /** Saved dishes and ★ pins; null hides the shortcuts. */
+    shortcuts: MealShortcutsStore? = null,
+    /** The journal's meals, for "often at <slot>" suggestions. */
+    pastMeals: () -> List<SavedMeal> = { emptyList() },
+    // False for rows imported from a voice capture, which stay in the order they were spoken.
+    sortInitialItems: Boolean = true,
+    /** Dictations and meal photos: the mic and camera beside the search field. */
+    captureStore: EntryStore? = null,
+    captureCoordinator: CaptureCoordinator? = null,
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -143,19 +177,69 @@ fun MealBuilderScreen(
     var query by remember { mutableStateOf("") }
     val suggestions = remember { mutableStateListOf<IngredientSuggestion>() }
     // Sorted alphabetically only here, on reopening a saved meal: `initialItems` is non-empty
-    // exactly when editing (MainActivity supplies it only from an editingMeal), never when composing
+    // when editing (MainActivity supplies it from an editingMeal) or when a voice capture hands rows
+    // over (those pass sortInitialItems = false and keep their spoken order), never when composing
     // a new one. The addition order is a fact about a past session the person is no longer holding in
     // mind, and a long meal reads faster alphabetically than in whatever sequence it happened to be
     // typed. A freshly composed meal does NOT sort — rows added via `items.addAll(rowsFor(...))` below
     // stay in the order they were added, matching the iOS twin.
     val items = remember {
         mutableStateListOf<MealIngredient>().apply {
-            addAll(initialItems.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label }))
+            addAll(
+                if (sortInitialItems) initialItems.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+                else initialItems,
+            )
         }
     }
+    var mealAt by remember { mutableLongStateOf(initialAtEpochMs) }
+    var slot by remember { mutableStateOf(initialSlot) }
+    val dishes = remember { MealBuilderDishes(items) }
+    var isSavingDish by remember { mutableStateOf(false) }
+    // The barcode the catalogue did not know, so it can be reported once.
+    var notFoundCode by remember { mutableStateOf<String?>(null) }
+    var isReportSent by remember { mutableStateOf(false) }
     var isSearching by remember { mutableStateOf(false) }
     var isAnalysing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Captures made from this screen. Each result is added to the meal as soon as it is in, with its best
+    // matches, editable like any other row. One that cannot be added in full stays in the journal.
+    val capturedHere = remember { mutableStateListOf<String>() }
+    val handledCaptures = remember { mutableStateListOf<String>() }
+    var captureNotice by remember { mutableStateOf<String?>(null) }
+    // One collector, processing ready captures one after another: keyed on Unit so handling one (which
+    // changes the ready list) never cancels a lookup still in flight.
+    LaunchedEffect(Unit) {
+        val store = captureStore ?: return@LaunchedEffect
+        val coordinator = captureCoordinator ?: return@LaunchedEffect
+        snapshotFlow {
+            capturedHere.filter { id -> id !in handledCaptures && store.find(id)?.state == EntryState.READY }
+        }.collect { ready ->
+            for (id in ready) {
+                handledCaptures += id
+                val recognized = store.find(id)?.result?.items.orEmpty()
+                val plan = try {
+                    resolveImport(
+                        items = recognized,
+                        selections = recognized.map(::defaultSelection),
+                        lang = LanguageSettings.effective,
+                        lookup = { PocketNutritionApi.ingredientDetail(it) },
+                    )
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (failure: Exception) {
+                    null // A lookup failed: the capture stays in the journal, to be opened from there.
+                }
+                if (plan == null || plan.rows.isEmpty()) {
+                    captureNotice = Strings.active.CAPTURE_NOTHING
+                    continue
+                }
+                items.addAll(plan.rows)
+                if (plan.skipped.isEmpty()) deleteCapture(store, coordinator, id, scope)
+                captureNotice = Strings.active.CAPTURE_ADDED
+            }
+        }
+    }
 
     // How many ingredient phrases the server split the query into, from X-Segment-Count. 1 until a
     // response says otherwise, so a fresh screen behaves as single-add.
@@ -233,17 +317,19 @@ fun MealBuilderScreen(
         // "Erreur : The coroutine scope left the composition" on perfectly normal typing. Cancellation
         // is control flow, not failure: rethrow it and let the coroutine machinery unwind.
         try {
-            val found = PocketNutritionApi.search(trimmed, limit = MAX_SUGGESTIONS)
+            val lang = LanguageSettings.effective
+            val found = PocketNutritionApi.search(trimmed, lang = lang, limit = MAX_SUGGESTIONS)
             suggestions.clear()
             // The corpus rule, not a local tweak: collapses the duplicate labels the API returns, pins
-            // recipes on top, and prefers French once there are enough French results. Without it a
-            // search for "poulet" showed four rows all reading "Poulet / 100 g / Produit".
+            // recipes on top, and prefers the active language once there are enough same-language
+            // results. Without it a search for "poulet" showed four rows all reading
+            // "Poulet / 100 g / Produit".
             //
-            // NOTE it reorders: recipes are lifted to the top and French floats up above MIN_SAME_LANG.
-            // The server's "first N rows are one best match per term" ordering therefore does NOT survive
-            // to here, which is why multi-select is a free-form checklist rather than one slot per term.
-            // X-Segment-Count is a count, not a mapping.
-            suggestions.addAll(deduplicateByLabel(found.rows, preferLang = "fr"))
+            // NOTE it reorders: recipes are lifted to the top and the preferred language floats up
+            // above MIN_SAME_LANG. The server's "first N rows are one best match per term" ordering
+            // therefore does NOT survive to here, which is why multi-select is a free-form checklist
+            // rather than one slot per term. X-Segment-Count is a count, not a mapping.
+            suggestions.addAll(deduplicateByLabel(found.rows, preferLang = lang))
             segmentCount = found.segmentCount
             errorMessage = null
         } catch (cancellation: CancellationException) {
@@ -258,7 +344,7 @@ fun MealBuilderScreen(
     if (showScanner) {
         BarcodeScannerScreen(
             onBarcodeDetected = detected@{ ean13 ->
-                // `BarcodeScannerScreen`'s own `hasFired` flag guards against ML Kit reporting the same
+                // `BarcodeScannerScreen`'s own `hasFired` flag guards against the decoder reporting the same
                 // frame's result twice, but that flag lives on the camera composable — if it were ever
                 // recreated mid-lookup (the iOS twin hit exactly this: a state change recreated its
                 // camera view, and the still-framed product got scanned a second time before the first
@@ -270,11 +356,13 @@ fun MealBuilderScreen(
                     showScanner = false
                     errorMessage = null
                     try {
-                        val found = PocketNutritionApi.lookupBarcode(ean13)
+                        val found = PocketNutritionApi.lookupBarcode(ean13, LanguageSettings.effective)
                         if (found != null) {
                             items.addAll(rowsFor(found))
                         } else {
-                            errorMessage = Fr.SCAN_NOT_FOUND
+                            if (notFoundCode != ean13) isReportSent = false
+                            notFoundCode = ean13
+                            errorMessage = Strings.active.SCAN_NOT_FOUND
                         }
                     } catch (cancellation: CancellationException) {
                         throw cancellation
@@ -308,21 +396,51 @@ fun MealBuilderScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = Fr.MEAL_HEADING,
-                color = PnColor.InkDefault,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = Strings.active.MEAL_HEADING,
+                    color = PnColor.InkDefault,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                SlotChip(
+                    slot = slot,
+                    atEpochMs = mealAt,
+                    // Another slot moves the time into its band (same day), unless it already falls there.
+                    onPickSlot = { candidate ->
+                        slot = candidate
+                        if (mealSlotAt(mealAt) != candidate) mealAt = defaultTimeFor(candidate, mealAt)
+                    },
+                    onPickTime = { picked ->
+                        mealAt = picked
+                        slot = mealSlotAt(picked)
+                    },
+                )
+            }
+            if (shortcuts != null) {
+                DishMenu(
+                    canSave = items.any { !it.isQuickAddRow },
+                    updatable = dishes.updatable(shortcuts),
+                    onSave = { isSavingDish = true },
+                    onUpdate = { dishes.writeBack(it, shortcuts) },
+                )
+            }
             TextButton(onClick = onCancel) {
-                Text(Fr.SEARCH_CANCEL, color = PnColor.InkSoft, fontSize = 13.sp)
+                Text(Strings.active.SEARCH_CANCEL, color = PnColor.InkSoft, fontSize = 13.sp)
             }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Box(modifier = Modifier.weight(1f)) {
                 SearchField(value = query, onValueChange = { query = it })
+            }
+            if (captureStore != null && captureCoordinator != null) {
+                CaptureButtons(
+                    store = captureStore,
+                    coordinator = captureCoordinator,
+                    onCaptured = { capturedHere += it },
+                    onError = { errorMessage = it },
+                )
             }
             IconButton(onClick = {
                 val act = activity
@@ -338,11 +456,26 @@ fun MealBuilderScreen(
                 }
             }) {
                 Text(
-                    Fr.SCAN_BUTTON,
+                    Strings.active.SCAN_BUTTON,
                     fontSize = 20.sp,
-                    modifier = Modifier.semantics { contentDescription = Fr.SCAN_BUTTON_A11Y },
+                    modifier = Modifier.semantics { contentDescription = Strings.active.SCAN_BUTTON_A11Y },
                 )
             }
+        }
+
+        // What the captures made here are doing; ready ones are added to the meal and leave this list.
+        capturedHere.filter { it !in handledCaptures }.forEach { id ->
+            captureStore?.find(id)?.let { entry ->
+                Text(
+                    text = (if (entry.isPhoto) "📷 " else "🎙️ ") + captureStatus(entry),
+                    color = PnColor.InkSoft,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
+        captureNotice?.let { notice ->
+            Text(notice, color = PnColor.BrandLeafDeep, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp))
         }
 
         // Teaches multi-term search, which is otherwise undiscoverable — nothing about a search field
@@ -352,7 +485,7 @@ fun MealBuilderScreen(
         // Hidden as soon as the server reports a second term: the person is already doing it.
         if (segmentCount <= 1) {
             Text(
-                text = Fr.MULTI_TERM_HINT,
+                text = Strings.active.MULTI_TERM_HINT,
                 color = PnColor.InkSoft,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -361,6 +494,25 @@ fun MealBuilderScreen(
 
         if (isSearching) {
             CircularProgressIndicator(modifier = Modifier.width(20.dp))
+        }
+
+        if (shortcuts != null) {
+            val needle = foldForSearch(query)
+            TypedShortcuts(
+                quickAddKcal = parseQuickAddKcal(query),
+                dishes = if (needle.length < 2) emptyList() else
+                    shortcuts.dishesByRelevance.filter { foldForSearch(it.name).contains(needle) }.take(3),
+                foods = if (needle.length < 2) emptyList() else
+                    recentFoods(pastMeals(), slot, RECENTS_SEARCH_LIMIT)
+                        .filter { foldForSearch(it.item.label).contains(needle) }.take(3),
+                store = shortcuts,
+                onQuickAdd = { kcal ->
+                    items.add(quickAddRow(kcal.toDouble()))
+                    query = ""
+                },
+                onApplyDish = { dishes.apply(it, shortcuts); query = "" },
+                onAddRecent = { items.add(it.item.asMealIngredient()); query = "" },
+            )
         }
 
         if (suggestions.isNotEmpty()) {
@@ -401,7 +553,7 @@ fun MealBuilderScreen(
                 }
             }
         } else if (query.isNotBlank() && !isSearching) {
-            Text(Fr.SEARCH_NO_RESULTS, color = PnColor.InkSoft, fontSize = 13.sp)
+            Text(Strings.active.SEARCH_NO_RESULTS, color = PnColor.InkSoft, fontSize = 13.sp)
         }
 
         // Cancel / confirm for a multi-term selection, shown only while something is checked. Confirm goes
@@ -412,11 +564,11 @@ fun MealBuilderScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TextButton(onClick = { selectedIds.clear(); query = "" }) {
-                    Text(Fr.SEARCH_CANCEL, color = PnColor.InkSoft, fontSize = 13.sp)
+                    Text(Strings.active.SEARCH_CANCEL, color = PnColor.InkSoft, fontSize = 13.sp)
                 }
                 Box(modifier = Modifier.weight(1f)) {
                     PrimaryButton(
-                        text = Fr.confirmAdd(selectedIds.size),
+                        text = Strings.active.confirmAdd(selectedIds.size),
                         onClick = {
                             val chosen = suggestions.filter { it.ingredientId in selectedIds }
                             selectedIds.clear()
@@ -429,7 +581,21 @@ fun MealBuilderScreen(
             }
         }
 
-        if (items.isEmpty()) {
+        val quickPicksRecents = if (shortcuts != null && items.isEmpty() && suggestions.isEmpty()) {
+            recentFoods(pastMeals(), slot, RECENTS_EMPTY_LIMIT)
+        } else emptyList()
+        if (shortcuts != null && items.isEmpty() && suggestions.isEmpty() &&
+            (shortcuts.dishes.isNotEmpty() || quickPicksRecents.isNotEmpty())
+        ) {
+            QuickPicks(
+                store = shortcuts,
+                recents = quickPicksRecents,
+                slot = slot,
+                onApplyDish = { dishes.apply(it, shortcuts) },
+                onAddRecent = { items.add(it.item.asMealIngredient()) },
+                modifier = Modifier.weight(1f),
+            )
+        } else if (items.isEmpty()) {
             Column(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
@@ -443,7 +609,7 @@ fun MealBuilderScreen(
                 if (suggestions.isEmpty()) {
                     Text("🥗", fontSize = 40.sp)
                     Text(
-                        text = Fr.MEAL_EMPTY,
+                        text = Strings.active.MEAL_EMPTY,
                         color = PnColor.InkSoft,
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center,
@@ -455,16 +621,38 @@ fun MealBuilderScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    MealItemRow(
-                        item = item,
-                        isExpanded = expandedItemId == item.id,
-                        onToggleExpand = {
-                            expandedItemId = if (expandedItemId == item.id) null else item.id
-                        },
-                        onChange = { items[index] = it },
-                        onRemove = { items.removeAt(index) },
-                    )
+                items(dishes.entries, key = { it.key }) { entry ->
+                    when (entry) {
+                        is BuilderEntry.Group -> DishGroupHeader(
+                            name = entry.group.name,
+                            summary = dishes.members(entry.group).joinToString(" · ") { it.label },
+                            servings = entry.group.servings,
+                            parts = entry.group.parts,
+                            isExpanded = dishes.isExpanded(entry.group),
+                            onToggle = { dishes.toggle(entry.group) },
+                            onParts = { dishes.setParts(entry.group, it) },
+                            onRemove = { dishes.removeGroup(entry.group) },
+                        )
+                        is BuilderEntry.Row -> items.firstOrNull { it.id == entry.rowId }?.let { item ->
+                            if (item.isQuickAddRow) {
+                                QuickAddMealRow(kcal = item.quantity, onRemove = { dishes.removeRow(item.id) })
+                            } else {
+                                MealItemRow(
+                                    item = item,
+                                    isExpanded = expandedItemId == item.id,
+                                    onToggleExpand = {
+                                        expandedItemId = if (expandedItemId == item.id) null else item.id
+                                    },
+                                    // By id rather than index: a dish's head shifts the list's positions.
+                                    onChange = { changed ->
+                                        val index = items.indexOfFirst { it.id == item.id }
+                                        if (index >= 0) items[index] = changed
+                                    },
+                                    onRemove = { dishes.removeRow(item.id) },
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -482,7 +670,24 @@ fun MealBuilderScreen(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(Fr.error(message), color = PnColor.StatusBad, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text(Strings.active.error(message), color = PnColor.StatusBad, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                }
+                val missingCode = notFoundCode
+                if (missingCode != null && message == Strings.active.SCAN_NOT_FOUND) {
+                    TextButton(
+                        enabled = !isReportSent,
+                        onClick = {
+                            isReportSent = true
+                            scope.launch { reportMissingBarcode(missingCode) }
+                        },
+                    ) {
+                        Text(
+                            if (isReportSent) Strings.active.SCAN_REPORT_SENT else Strings.active.SCAN_REPORT,
+                            color = if (isReportSent) PnColor.InkSoft else PnColor.BrandLeafDeep,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
 
@@ -491,7 +696,7 @@ fun MealBuilderScreen(
             // right now is the search field above it.
             if (items.isNotEmpty()) {
                 PrimaryButton(
-                    text = if (isAnalysing) Fr.MEAL_ANALYSING else Fr.mealAnalyse(items.size),
+                    text = if (isAnalysing) Strings.active.MEAL_ANALYSING else Strings.active.mealAnalyse(items.size),
                     enabled = !isAnalysing,
                     onClick = {
                         isAnalysing = true
@@ -500,8 +705,18 @@ fun MealBuilderScreen(
                             // Same reason as the search effect: cancellation is rethrown rather than
                             // shown. Here it fires when the screen is left mid-request.
                             try {
-                                val profiles = PocketNutritionApi.analyse(items.map { it.asRequest() })
-                                onAnalysed(profiles, items.map { it.asMealItem() })
+                                // Quick-add rows carry their own energy and are never sent; the answers are
+                                // put back in row order so profiles stay aligned with items.
+                                val snapshot = items.toList()
+                                val sent = snapshot.filterNot { it.isQuickAddRow }
+                                val answers = if (sent.isEmpty()) emptyList() else
+                                    PocketNutritionApi.analyse(sent.map { it.asRequest() })
+                                val profiles = mergeQuickAdd(snapshot, answers)
+                                onAnalysed(
+                                    profiles,
+                                    withAvailability(snapshot.map { it.asMealItem() }, profiles),
+                                    AnalysedMeal(mealAt, slot),
+                                )
                             } catch (cancellation: CancellationException) {
                                 throw cancellation
                             } catch (failure: Exception) {
@@ -513,6 +728,15 @@ fun MealBuilderScreen(
                 )
             }
         }
+    }
+
+    if (isSavingDish && shortcuts != null) {
+        val mealItems = items.map { it.asMealItem() }
+        SaveDishDialog(
+            items = mealItems,
+            onSave = { name, servings -> shortcuts.saveDish(name, servings, mealItems) },
+            onDismiss = { isSavingDish = false },
+        )
     }
 
     when (permissionDialog) {
@@ -559,6 +783,7 @@ internal fun rowsFor(suggestion: IngredientSuggestion): List<MealIngredient> {
     if (!suggestion.isRecipe) return listOf(suggestion.asMealRow())
     return unpackRecipe(suggestion).mapNotNull { component ->
         buildMealIngredient(component, UUID.randomUUID().toString())
+            ?.lockedToRawIfIndustrial(component.suggestion.isProduct)
     }
 }
 
@@ -623,7 +848,7 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
                 // theme maps to InkSoft and which measures a comfortable 6.12:1, while iOS landed on a
                 // near-white 1.72:1. Naming it here removes the accident on both sides.
                 if (value.isEmpty()) {
-                    Text(Fr.SEARCH_PLACEHOLDER, color = PnColor.InkSoft, fontSize = 15.sp)
+                    Text(Strings.active.SEARCH_PLACEHOLDER, color = PnColor.InkSoft, fontSize = 15.sp)
                 }
                 inner()
             },
@@ -669,7 +894,7 @@ private fun SuggestionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = if (suggestion.isRecipe) {
-                    Fr.SEARCH_RECIPE_PREFIX.format(suggestion.label)
+                    Strings.active.SEARCH_RECIPE_PREFIX.format(suggestion.label)
                 } else {
                     suggestion.label
                 },
@@ -690,7 +915,7 @@ private fun SuggestionRow(
         }
         when {
             suggestion.isRecipe -> Text(
-                text = Fr.SEARCH_RECIPE_COMPONENT_COUNT
+                text = Strings.active.SEARCH_RECIPE_COMPONENT_COUNT
                     .format(suggestion.recipeComponents.orEmpty().size),
                 color = PnColor.OnSoftPlum,
                 fontSize = 10.sp,
@@ -699,7 +924,7 @@ private fun SuggestionRow(
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             )
             suggestion.isProduct -> Text(
-                text = Fr.SEARCH_PRODUCT_BADGE,
+                text = Strings.active.SEARCH_PRODUCT_BADGE,
                 color = PnColor.HueSea,
                 fontSize = 10.sp,
                 modifier = Modifier
@@ -709,7 +934,7 @@ private fun SuggestionRow(
         }
         TextButton(onClick = onClick, enabled = !alreadyAdded) {
             Text(
-                text = if (alreadyAdded) Fr.SEARCH_ALREADY_ADDED else "+",
+                text = if (alreadyAdded) Strings.active.SEARCH_ALREADY_ADDED else "+",
                 color = PnColor.BrandLeafDeep,
                 fontSize = 13.sp,
             )
@@ -789,7 +1014,7 @@ private fun subtitleFor(suggestion: IngredientSuggestion): String? {
         val names = suggestion.recipeComponents.orEmpty().map { it.ingredient.label }
         return names.takeIf { it.isNotEmpty() }?.joinToString(", ")
     }
-    val grams = suggestion.servingG?.let { "${formatFrenchNumber(it)} g" }
+    val grams = suggestion.servingG?.let { "${formatNumber(it, LanguageSettings.effective)} g" }
     return listOfNotNull(suggestion.brand, grams).takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
@@ -850,10 +1075,10 @@ private fun MealItemRow(
                 )
                 MethodPill(item = item, expanded = pickingMethod, onClick = { pickingMethod = true })
                 TextButton(onClick = { reportingFeedback = true }) {
-                    Text(Fr.FEEDBACK_REPORT, color = PnColor.InkSoft, fontSize = 12.sp)
+                    Text(Strings.active.FEEDBACK_REPORT, color = PnColor.InkSoft, fontSize = 12.sp)
                 }
                 TextButton(onClick = onRemove) {
-                    Text(Fr.MEAL_REMOVE, color = PnColor.InkSoft, fontSize = 12.sp)
+                    Text(Strings.active.MEAL_REMOVE, color = PnColor.InkSoft, fontSize = 12.sp)
                 }
                 TextButton(onClick = onToggleExpand) {
                     Text("▴", color = PnColor.InkSoft, fontSize = 14.sp)
@@ -876,7 +1101,7 @@ private fun MealItemRow(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val caption = item.summary().primary
+                    val caption = item.summary(LanguageSettings.effective).primary
                     if (caption.isNotEmpty()) {
                         Text(
                             text = caption,
@@ -889,7 +1114,7 @@ private fun MealItemRow(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "${formatFrenchNumber(item.quantity)} ${if (item.displayUnit == "ml") "mL" else "g"}",
+                    text = "${formatNumber(item.quantity, LanguageSettings.effective)} ${if (item.displayUnit == "ml") "mL" else "g"}",
                     color = PnColor.InkSoft,
                     fontSize = 12.sp,
                 )
@@ -923,7 +1148,7 @@ private fun MealItemRow(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = Fr.MEAL_COOKING,
+                    text = Strings.active.MEAL_COOKING,
                     color = PnColor.InkDefault,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -933,7 +1158,7 @@ private fun MealItemRow(
                 PnCooking.Methods.forEach { method ->
                     MethodOptionRow(
                         emoji = method.emoji,
-                        label = Fr.cookingMethod(method.id),
+                        label = Strings.active.cookingMethod(method.id),
                         subtitle = yieldHint(item, method.id),
                         selected = method.id == item.cookingMethod,
                         onClick = { onChange(applyMethodChange(item, method.id)) },
@@ -948,16 +1173,16 @@ private fun MealItemRow(
                 // for raw rows, where there is nothing to convert and the question has no answer.
                 if (item.cookingMethod != "raw") {
                     Spacer(Modifier.height(8.dp))
-                    Text(Fr.WEIGHED_LABEL, color = PnColor.InkSoft, fontSize = 12.sp)
+                    Text(Strings.active.WEIGHED_LABEL, color = PnColor.InkSoft, fontSize = 12.sp)
                     MethodOptionRow(
                         emoji = "🌿",
-                        label = Fr.MEASURED_BEFORE_LONG,
+                        label = Strings.active.MEASURED_BEFORE_LONG,
                         selected = item.measuredState == "raw",
                         onClick = { onChange(switchMeasuredState(item, "raw")) },
                     )
                     MethodOptionRow(
                         emoji = "🍽️",
-                        label = Fr.MEASURED_AFTER_LONG,
+                        label = Strings.active.MEASURED_AFTER_LONG,
                         selected = item.measuredState == "cooked",
                         onClick = { onChange(switchMeasuredState(item, "cooked")) },
                     )
@@ -1097,10 +1322,10 @@ private fun FeedbackSheetContent(item: MealIngredient, onClose: () -> Unit) {
         )
 
         if (status == FeedbackStatus.DONE) {
-            Text(Fr.FEEDBACK_SUCCESS, color = PnColor.InkDefault, fontSize = 14.sp)
+            Text(Strings.active.FEEDBACK_SUCCESS, color = PnColor.InkDefault, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
         } else {
-            Text(Fr.FEEDBACK_INTRO, color = PnColor.InkSoft, fontSize = 12.sp)
+            Text(Strings.active.FEEDBACK_INTRO, color = PnColor.InkSoft, fontSize = 12.sp)
 
             if (corrections.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1129,7 +1354,7 @@ private fun FeedbackSheetContent(item: MealIngredient, onClose: () -> Unit) {
                                 fontSize = 16.sp,
                                 modifier = Modifier
                                     .clickable { corrections.removeAt(index) }
-                                    .semantics { contentDescription = Fr.FEEDBACK_REMOVE_CORRECTION }
+                                    .semantics { contentDescription = Strings.active.FEEDBACK_REMOVE_CORRECTION }
                                     .padding(4.dp),
                             )
                         }
@@ -1190,7 +1415,7 @@ private fun FeedbackSheetContent(item: MealIngredient, onClose: () -> Unit) {
                                                 onClick = { addCorrection() },
                                                 enabled = draftValue.isNotBlank(),
                                             ) {
-                                                Text(Fr.FEEDBACK_ADD)
+                                                Text(Strings.active.FEEDBACK_ADD)
                                             }
                                         }
                                     }
@@ -1209,7 +1434,7 @@ private fun FeedbackSheetContent(item: MealIngredient, onClose: () -> Unit) {
                         if (status == FeedbackStatus.ERROR) status = FeedbackStatus.IDLE
                     }
                 },
-                label = { Text(Fr.FEEDBACK_COMMENT) },
+                label = { Text(Strings.active.FEEDBACK_COMMENT) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 maxLines = 4,
@@ -1217,21 +1442,21 @@ private fun FeedbackSheetContent(item: MealIngredient, onClose: () -> Unit) {
 
             if (status == FeedbackStatus.ERROR) {
                 Text(
-                    text = Fr.error(errorMessage ?: Fr.FEEDBACK_FAILURE),
+                    text = Strings.active.error(errorMessage ?: Strings.active.FEEDBACK_FAILURE),
                     color = PnColor.StatusBad,
                     fontSize = 12.sp,
                 )
             }
 
             PrimaryButton(
-                text = if (status == FeedbackStatus.SENDING) Fr.FEEDBACK_SUBMITTING else Fr.FEEDBACK_SUBMIT,
+                text = if (status == FeedbackStatus.SENDING) Strings.active.FEEDBACK_SUBMITTING else Strings.active.FEEDBACK_SUBMIT,
                 enabled = canSend,
                 onClick = { submit() },
             )
         }
 
         TextButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-            Text(Fr.FEEDBACK_CLOSE, color = PnColor.InkSoft)
+            Text(Strings.active.FEEDBACK_CLOSE, color = PnColor.InkSoft)
         }
 
         Spacer(Modifier.height(8.dp))
@@ -1363,9 +1588,9 @@ private fun yieldHint(item: MealIngredient, methodId: String): String? {
     val factor = resolveYieldFactor(item.yieldFactors, methodId)
     if (factor == 1.0) return null
     val ratio = if (factor > 1) factor else 1 / factor
-    val display = formatFrenchNumber(kotlin.math.round(ratio * 10) / 10)
-    val direction = if (factor > 1) "plus" else "moins"
-    return "Cet aliment pèse ${display}x $direction lourd une fois cuit"
+    val lang = LanguageSettings.effective
+    val display = formatNumber(kotlin.math.round(ratio * 10) / 10, lang)
+    return Strings.active.yieldHint(display = display, heavier = factor > 1)
 }
 
 /**
@@ -1406,26 +1631,30 @@ private fun MethodOptionRow(
  * States the current cooking answer rather than being a bare chevron — "🔥 Grillé (pesé après cuisson)".
  * A disclosure arrow alone would hide two decisions that change the numbers, and the point of
  * collapsing is to save room, not to keep the user from knowing.
+ *
+ * Absent entirely for an Open Food Facts product: the backend always analyses it at its own values
+ * regardless of cooking method, so there is no cooking-method state worth showing.
  */
 @Composable
 private fun MethodPill(item: MealIngredient, expanded: Boolean, onClick: () -> Unit) {
+    if (item.isIndustrialProduct) return
     val method = PnCooking.Methods.firstOrNull { it.id == item.cookingMethod }
     val emoji = if (item.cookingMethod == "raw") "🌿" else (method?.emoji ?: "🍲")
     // The weighed state only means something once something has been cooked: a raw weight of a raw food
     // is the same number either way, so appending "(pesé avant cuisson)" there would be noise dressed as
     // information. The sandbox and iOS make the same call.
     val text = if (item.cookingMethod == "raw") {
-        "$emoji ${Fr.cookingMethod(item.cookingMethod)}"
+        "$emoji ${Strings.active.cookingMethod(item.cookingMethod)}"
     } else {
-        "$emoji ${Fr.cookingMethod(item.cookingMethod)} " +
-            Fr.weighedInline(Fr.measuredWhen(item.measuredState))
+        "$emoji ${Strings.active.cookingMethod(item.cookingMethod)} " +
+            Strings.active.weighedInline(Strings.active.measuredWhen(item.measuredState))
     }
 
     Box(
         modifier = Modifier
             .background(method?.soft ?: PnColor.SurfaceCream, RoundedCornerShape(PnRadius.Pill))
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "${Fr.CHANGE_COOKING} — $text" }
+            .semantics { contentDescription = "${Strings.active.CHANGE_COOKING} — $text" }
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(

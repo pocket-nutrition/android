@@ -1,0 +1,167 @@
+{
+  "suite": "rank-recents",
+  "description": "Orders past foods for the empty search screen: most uses in the current slot, then most uses overall, then most recent use (`at`, seconds), then key ascending. Distinct keys, at most `limit`.",
+  "generatedBy": "pocket-nutrition-sandbox — npm run vectors:build",
+  "cases": [
+    {
+      "id": "slot-beats-total",
+      "why": "At breakfast, coffee (twice at breakfast) ranks above rice (four times, all at lunch): the slot is the strongest signal.",
+      "input": {
+        "uses": [
+          {
+            "key": "coffee",
+            "slot": "breakfast",
+            "at": 1
+          },
+          {
+            "key": "coffee",
+            "slot": "breakfast",
+            "at": 2
+          },
+          {
+            "key": "rice",
+            "slot": "lunch",
+            "at": 3
+          },
+          {
+            "key": "rice",
+            "slot": "lunch",
+            "at": 4
+          },
+          {
+            "key": "rice",
+            "slot": "lunch",
+            "at": 5
+          },
+          {
+            "key": "rice",
+            "slot": "lunch",
+            "at": 6
+          }
+        ],
+        "slot": "breakfast",
+        "limit": 5
+      },
+      "expected": [
+        "coffee",
+        "rice"
+      ]
+    },
+    {
+      "id": "total-breaks-slot-tie",
+      "why": "With equal uses in the slot, the food eaten more often overall comes first.",
+      "input": {
+        "uses": [
+          {
+            "key": "apple",
+            "slot": "snack",
+            "at": 1
+          },
+          {
+            "key": "apple",
+            "slot": "lunch",
+            "at": 2
+          },
+          {
+            "key": "yogurt",
+            "slot": "snack",
+            "at": 3
+          }
+        ],
+        "slot": "snack",
+        "limit": 5
+      },
+      "expected": [
+        "apple",
+        "yogurt"
+      ]
+    },
+    {
+      "id": "recency-breaks-count-tie",
+      "why": "Equal counts everywhere: the most recently eaten food comes first.",
+      "input": {
+        "uses": [
+          {
+            "key": "a",
+            "slot": "lunch",
+            "at": 10
+          },
+          {
+            "key": "b",
+            "slot": "lunch",
+            "at": 20
+          }
+        ],
+        "slot": "lunch",
+        "limit": 5
+      },
+      "expected": [
+        "b",
+        "a"
+      ]
+    },
+    {
+      "id": "key-breaks-full-tie",
+      "why": "A full tie is broken by key ascending, so iOS and Android show the same order.",
+      "input": {
+        "uses": [
+          {
+            "key": "pear",
+            "slot": "lunch",
+            "at": 10
+          },
+          {
+            "key": "fig",
+            "slot": "lunch",
+            "at": 10
+          }
+        ],
+        "slot": "lunch",
+        "limit": 5
+      },
+      "expected": [
+        "fig",
+        "pear"
+      ]
+    },
+    {
+      "id": "limit-applies",
+      "why": "Only the best `limit` keys are returned, so the list under the empty field stays short.",
+      "input": {
+        "uses": [
+          {
+            "key": "a",
+            "slot": "dinner",
+            "at": 3
+          },
+          {
+            "key": "b",
+            "slot": "dinner",
+            "at": 2
+          },
+          {
+            "key": "c",
+            "slot": "dinner",
+            "at": 1
+          }
+        ],
+        "slot": "dinner",
+        "limit": 2
+      },
+      "expected": [
+        "a",
+        "b"
+      ]
+    },
+    {
+      "id": "no-history",
+      "why": "A new user has no history: the list is empty rather than padded with defaults.",
+      "input": {
+        "uses": [],
+        "slot": "breakfast",
+        "limit": 5
+      },
+      "expected": []
+    }
+  ]
+}

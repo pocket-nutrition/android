@@ -10,6 +10,8 @@ kotlin = "2.4.10"
 # must not be bumped independently of it.
 composeBom = "2026.06.01"
 kotlinxSerialization = "1.11.0"
+# Already on the classpath through CameraX; declared because the meal photo reader uses it directly.
+exifinterface = "1.4.2"
 androidxCore = "1.19.0"
 androidxLifecycle = "2.11.0"
 androidxActivity = "1.13.0"
@@ -19,14 +21,28 @@ junit = "4.13.2"
 # wrapped in an interop layer — and it is the smallest of the three by a wide margin, which matters
 # for an app whose only other runtime dependencies are Compose and kotlinx.serialization.
 coil = "3.4.0"
-# Live barcode scanning: CameraX supplies the preview + frame pipeline, ML Kit the on-device decoder.
+# Live barcode scanning: CameraX supplies the preview + frame pipeline, ZXing the on-device decoder.
+# ZXing (Apache-2.0, pure Java) replaced ML Kit, which is closed source and so cannot ship on F-Droid.
 # Chosen over the Play-Services "Google Code Scanner" (com.google.android.gms:play-services-code-scanner),
 # which needs neither a CAMERA permission nor a manifest entry because it owns its own full-screen
 # scanning UI in a separate activity — but for exactly that reason it does not let this app show its
 # own pre-permission explainer or drive a "permanently denied -> open Settings" flow, which the
 # feature explicitly requires this app to control.
 cameraX = "1.4.2"
-mlkitBarcodeScanning = "17.3.0"
+zxing = "3.5.3"
+# libsodium for the end-to-end-encrypted vault (Argon2id, crypto_kdf, XChaCha20-Poly1305, sealed boxes,
+# BLAKE2b): the same library iOS (swift-sodium), the web reader (libsodium.js) and the server's test
+# vectors use, so every client derives and opens the same bytes. Approved by the maintainer as a new
+# dependency (2026-11-06). Lazysodium is MPL-2.0, like this repo, and bundles libsodium (ISC) built for
+# all four Android ABIs with 16 KB page alignment; it binds through JNA (Apache-2.0 / LGPL-2.1) rather
+# than its own JNI, so no NDK toolchain is needed here. Open source end to end, so it can ship on
+# F-Droid. Cost: about 1.7 MB of native code across ABIs (libsodium + JNA's dispatcher). The app only
+# calls the raw `com.goterl.lazysodium.Sodium` natives, which are byte-identical in the Android and
+# JVM flavours: lazysodium-java is test-only, because a JVM unit test cannot load the Android .so.
+# JNA is pinned to the version lazysodium 5.2.0 declares, and taken as its @aar (the jar carries
+# desktop dispatchers and would clash on Android).
+lazysodium = "5.2.0"
+jna = "5.17.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
@@ -51,11 +67,17 @@ coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp"
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
-mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcodeScanning" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+lazysodium-android = { group = "com.goterl", name = "lazysodium-android", version.ref = "lazysodium" }
+jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
+# Test-only: the same binding for the JVM, with libsodium built for desktop hosts.
+lazysodium-java = { group = "com.goterl", name = "lazysodium-java", version.ref = "lazysodium" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -9,9 +9,29 @@
   With backup unrestricted it was being uploaded to the user's Google Drive, making that sentence
   false — and it is a sentence about health data, which is the worst kind to be wrong about.
 
+  The voice-capture entries (transcripts), the recordings kept in recognition_audio/ and the
+  recognition_settings prefs (server URL + Keystore-encrypted API key) are excluded for the same reason,
+  and so is daily_targets.json (profile, overrides and weight log: health data). The vault_settings prefs
+  (server URL + Keystore-encrypted vault session, which holds the vault keys) and the vault sync bookkeeping
+  (*_vault_sync.json) are excluded too: a restored session could not be decrypted on another phone.
+
   Android 12+ reads res/xml/data_extraction_rules.xml instead. Both files are needed: minSdk is 26,
   so devices on 11 and below are still in scope and would ignore this one's replacement.
 -->
 <full-backup-content>
     <exclude domain="file" path="journal.json" />
+    <exclude domain="file" path="daily_targets.json" />
+    <exclude domain="file" path="daily_targets.json.tmp" />
+    <exclude domain="file" path="daily_targets.unreadable.json" />
+    <exclude domain="file" path="meal_shortcuts.json" />
+    <exclude domain="file" path="meal_shortcuts.json.tmp" />
+    <exclude domain="file" path="recognition_entries.json" />
+    <exclude domain="file" path="recognition_entries.json.tmp" />
+    <exclude domain="file" path="recognition_audio" />
+    <exclude domain="sharedpref" path="recognition_settings.xml" />
+    <exclude domain="sharedpref" path="vault_settings.xml" />
+    <exclude domain="file" path="journal_vault_sync.json" />
+    <exclude domain="file" path="journal_vault_sync.json.tmp" />
+    <exclude domain="file" path="targets_vault_sync.json" />
+    <exclude domain="file" path="targets_vault_sync.json.tmp" />
 </full-backup-content>

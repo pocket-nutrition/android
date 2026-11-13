@@ -35,12 +35,30 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.pocketnutrition.api.LanguageSettings
 import org.pocketnutrition.core.design.PnColor
+import org.pocketnutrition.ui.vault.VaultStrings
 import org.pocketnutrition.core.design.PnRadius
-import org.pocketnutrition.core.formatFrenchNumber
+import org.pocketnutrition.core.formatNumber
 import org.pocketnutrition.core.roundHalfUp
 import org.pocketnutrition.model.JournalStore
 import org.pocketnutrition.model.SavedMeal
+import org.pocketnutrition.model.TimelineItem
+import org.pocketnutrition.model.journalTimeline
+import org.pocketnutrition.model.MealShortcutsStore
+import org.pocketnutrition.model.groupBySlot
+import org.pocketnutrition.model.repeatMeal
+import org.pocketnutrition.model.withToday
+import org.pocketnutrition.model.yesterdaysMeal
+import org.pocketnutrition.core.MealSlot
+import org.pocketnutrition.core.mealSlotAt
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import java.time.LocalDate
+import org.pocketnutrition.recognition.Entry
+import org.pocketnutrition.recognition.EntryState
+import androidx.compose.material3.AlertDialog
+import java.time.ZoneId
 
 /**
  * Home screen: the meals kept on this device, newest day first.
@@ -52,14 +70,33 @@ import org.pocketnutrition.model.SavedMeal
 @Composable
 fun JournalScreen(
     store: JournalStore,
+    /** Saved dishes: a journal meal can be saved as one from its long-press menu. */
+    shortcuts: MealShortcutsStore,
     onAddMeal: () -> Unit,
+    /** "+ Breakfast" on today's empty main meal: a new meal already filed under that slot. */
+    onAddMealInSlot: (MealSlot) -> Unit,
     onEditMeal: (SavedMeal) -> Unit,
     onShowAbout: () -> Unit,
+    onShowSettings: () -> Unit,
+    /** Dictations and meal photos not made into meals yet; shown in their day as meals in progress. */
+    captures: List<Entry>,
+    onOpenCapture: (Entry) -> Unit,
+    onSendCapture: (Entry) -> Unit,
+    onResendCapture: (Entry) -> Unit,
+    onDeleteCapture: (Entry) -> Unit,
+    /** Shown under each day header (daily-targets rings); null when the feature is off. */
+    dayExtras: (@Composable (LocalDate) -> Unit)? = null,
+    /** With a linked vault the "only on this device" sentence would be false, so its vault variant shows. */
+    isVaultLinked: Boolean = false,
 ) {
-    // Closed by default: a single-entry menu one tap away from the empty state's own headline is
-    // still one tap cheaper for the entry it actually holds, but it is the shape a second entry
-    // (settings, export, whatever comes next) can grow into without a redesign.
+    // Closed by default: About (licence/attribution/privacy) and Settings (language, server
+    // override) are two distinct destinations, not one screen wearing two hats — see AboutScreen's
+    // and SettingsScreen's own doc comments for why they were split.
     var menuExpanded by remember { mutableStateOf(false) }
+    // A recording or photo cannot be brought back: deleting one is confirmed, as the voice screen did.
+    var captureToDelete by remember { mutableStateOf<Entry?>(null) }
+    // The meal being saved as a dish, from its long-press menu.
+    var dishSource by remember { mutableStateOf<SavedMeal?>(null) }
 
     Column(
         modifier = Modifier
@@ -71,7 +108,7 @@ fun JournalScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = Fr.JOURNAL_TITLE,
+                text = Strings.active.JOURNAL_TITLE,
                 color = PnColor.InkDefault,
                 fontFamily = FontFamily.Serif,
                 fontSize = 28.sp,
@@ -80,31 +117,86 @@ fun JournalScreen(
             )
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Text("⚙", color = PnColor.InkSoft, fontSize = 20.sp)
+                    Text("⋯", color = PnColor.InkSoft, fontSize = 20.sp)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                     DropdownMenuItem(
-                        text = { Text("Informations de licence") },
+                        text = { Text(Strings.active.ABOUT_TITLE) },
+                        leadingIcon = { Text("ℹ️", fontSize = 16.sp) },
                         onClick = {
                             menuExpanded = false
                             onShowAbout()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(Strings.active.SETTINGS_TITLE) },
+                        leadingIcon = { Text("⚙️", fontSize = 16.sp) },
+                        onClick = {
+                            menuExpanded = false
+                            onShowSettings()
                         },
                     )
                 }
             }
         }
 
-        if (store.meals.isEmpty()) {
-            EmptyJournal(onAddMeal = onAddMeal, modifier = Modifier.weight(1f))
+        if (store.meals.isEmpty() && captures.isEmpty()) {
+            dayExtras?.invoke(LocalDate.now(ZoneId.systemDefault()))
+            EmptyJournal(onAddMeal = onAddMeal, isVaultLinked = isVaultLinked, modifier = Modifier.weight(1f))
         } else {
-            MealList(store = store, onEditMeal = onEditMeal, modifier = Modifier.weight(1f))
-            PrimaryButton(text = Fr.JOURNAL_ADD, onClick = onAddMeal)
+            MealList(
+                store = store,
+                captures = captures,
+                onEditMeal = onEditMeal,
+                mealActions = MealActions(
+                    addInSlot = onAddMealInSlot,
+                    repeat = { meal, slot -> repeatMeal(store, meal, slot) },
+                    saveAsDish = { dishSource = it },
+                ),
+                captureActions = CaptureActions(onOpenCapture, onSendCapture, onResendCapture) { captureToDelete = it },
+                dayExtras = dayExtras,
+                modifier = Modifier.weight(1f),
+            )
+            PrimaryButton(text = Strings.active.JOURNAL_ADD, onClick = onAddMeal)
         }
+    }
+
+    dishSource?.let { meal ->
+        SaveDishDialog(
+            items = meal.items,
+            onSave = { name, servings -> shortcuts.saveDish(name, servings, meal.items) },
+            onDismiss = { dishSource = null },
+        )
+    }
+
+    captureToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { captureToDelete = null },
+            title = { Text(Strings.active.VOICE_DELETE_TITLE, color = PnColor.InkDefault) },
+            text = {
+                Text(
+                    Strings.active.voiceDeleteBody(hasAudio = target.audioFile != null, ready = target.state == EntryState.READY),
+                    color = PnColor.InkSoft,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    captureToDelete = null
+                    onDeleteCapture(target)
+                }) { Text(Strings.active.VOICE_DELETE_CONFIRM, color = PnColor.StatusBad) }
+            },
+            dismissButton = {
+                TextButton(onClick = { captureToDelete = null }) {
+                    Text(Strings.active.VOICE_CANCEL, color = PnColor.InkSoft)
+                }
+            },
+            containerColor = PnColor.SurfaceCard,
+        )
     }
 }
 
 @Composable
-private fun EmptyJournal(onAddMeal: () -> Unit, modifier: Modifier = Modifier) {
+private fun EmptyJournal(onAddMeal: () -> Unit, isVaultLinked: Boolean, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
@@ -112,16 +204,16 @@ private fun EmptyJournal(onAddMeal: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Text("🥗", fontSize = 48.sp)
         Text(
-            text = Fr.JOURNAL_EMPTY,
+            text = Strings.active.JOURNAL_EMPTY,
             color = PnColor.InkSoft,
             fontSize = 15.sp,
             textAlign = TextAlign.Center,
         )
-        PrimaryButton(text = Fr.JOURNAL_ADD, onClick = onAddMeal)
+        PrimaryButton(text = Strings.active.JOURNAL_ADD, onClick = onAddMeal)
         // Shown on the empty state rather than buried in a settings screen: the one moment the user is
         // deciding whether to trust the app with a diary is before they start one.
         Text(
-            text = Fr.JOURNAL_PRIVACY,
+            text = if (isVaultLinked) VaultStrings.active.journalPrivacyLinked else Strings.active.JOURNAL_PRIVACY,
             color = PnColor.InkSoft,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -129,53 +221,139 @@ private fun EmptyJournal(onAddMeal: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
+private class CaptureActions(
+    val open: (Entry) -> Unit,
+    val sendNow: (Entry) -> Unit,
+    val resend: (Entry) -> Unit,
+    val delete: (Entry) -> Unit,
+)
+
+private class MealActions(
+    val addInSlot: (MealSlot) -> Unit,
+    val repeat: (SavedMeal, MealSlot) -> Unit,
+    val saveAsDish: (SavedMeal) -> Unit,
+)
+
 @Composable
-private fun MealList(store: JournalStore, onEditMeal: (SavedMeal) -> Unit, modifier: Modifier = Modifier) {
+private fun MealList(
+    store: JournalStore,
+    captures: List<Entry>,
+    onEditMeal: (SavedMeal) -> Unit,
+    mealActions: MealActions,
+    captureActions: CaptureActions,
+    dayExtras: (@Composable (LocalDate) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     // Grouped by calendar day for the section headers. Done here rather than in the store because it
     // is a presentation concern and depends on the device's current time zone.
-    val grouped = store.meals.groupBy { dayFormatter.format(Date(it.savedAtEpochMs)) }
+    val formatter = dayFormatter(LanguageSettings.effective)
+    val zone = ZoneId.systemDefault()
+    val today = LocalDate.now(zone)
+    val meals = store.meals
+    val days = withToday(journalTimeline(meals, { it.savedAtEpochMs }, captures, zone), today)
 
     LazyColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        grouped.forEach { (day, meals) ->
-            item(key = "header-$day") {
-                Text(
-                    text = day,
-                    color = PnColor.InkSoft,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
-                )
-            }
-            items(meals, key = { it.id }) { meal ->
-                MealCard(meal = meal, onClick = { onEditMeal(meal) }, onDelete = { store.delete(meal) })
+        days.forEach { group ->
+            val day = formatter.format(Date.from(group.day.atStartOfDay(zone).toInstant()))
+            val isToday = group.day == today
+            item(key = "header-${group.day}") { DayHeader(day, dayKcal(group)) }
+            if (dayExtras != null) item(key = "targets-${group.day}") { dayExtras(group.day) }
+            groupBySlot(group, { it.effectiveSlot(zone) }, { it.savedAtEpochMs }, isToday, zone).forEach { slotGroup ->
+                item(key = "slot-${group.day}-${slotGroup.slot.id}") { SlotHeader(slotGroup.slot) }
+                if (slotGroup.items.isEmpty()) {
+                    item(key = "empty-${group.day}-${slotGroup.slot.id}") {
+                        EmptySlotRow(
+                            slot = slotGroup.slot,
+                            yesterday = yesterdaysMeal(meals, slotGroup.slot, today, zone),
+                            onAdd = { mealActions.addInSlot(slotGroup.slot) },
+                            onRepeat = { mealActions.repeat(it, slotGroup.slot) },
+                        )
+                    }
+                }
+                items(slotGroup.items, key = { item ->
+                    when (item) {
+                        is TimelineItem.Meal -> item.meal.id
+                        is TimelineItem.Capture -> "capture-" + item.entry.localId
+                    }
+                }) { item ->
+                    when (item) {
+                        is TimelineItem.Meal -> MealCard(
+                            meal = item.meal,
+                            onClick = { onEditMeal(item.meal) },
+                            onDelete = { store.delete(item.meal) },
+                            onLogAgain = { mealActions.repeat(item.meal, mealSlotAt(System.currentTimeMillis(), zone)) },
+                            onSaveAsDish = { mealActions.saveAsDish(item.meal) },
+                        )
+                        is TimelineItem.Capture -> JournalCaptureRow(
+                            entry = item.entry,
+                            onOpen = { captureActions.open(item.entry) },
+                            onSendNow = { captureActions.sendNow(item.entry) },
+                            onResend = { captureActions.resend(item.entry) },
+                            onDelete = { captureActions.delete(item.entry) },
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MealCard(meal: SavedMeal, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun MealCard(
+    meal: SavedMeal,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onLogAgain: () -> Unit,
+    onSaveAsDish: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(Strings.active.LOG_AGAIN_NOW) },
+                leadingIcon = { Text("↺", fontSize = 16.sp) },
+                onClick = {
+                    menuOpen = false
+                    onLogAgain()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(Strings.active.SAVE_AS_DISH) },
+                enabled = meal.items.any { !it.isQuickAdd },
+                onClick = {
+                    menuOpen = false
+                    onSaveAsDish()
+                },
+            )
+        }
+        MealCardBody(meal, onClick = onClick, onLongClick = { menuOpen = true }, onDelete = onDelete)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MealCardBody(meal: SavedMeal, onClick: () -> Unit, onLongClick: () -> Unit, onDelete: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .background(PnColor.SurfaceCard, RoundedCornerShape(PnRadius.Default))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = meal.items.joinToString(" · ") { it.label },
+                text = meal.items.joinToString(" · ") { it.journalLabel() },
                 color = PnColor.InkDefault,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f),
             )
             TextButton(onClick = onDelete) {
-                Text(Fr.JOURNAL_DELETE, color = PnColor.InkSoft, fontSize = 12.sp)
+                Text(Strings.active.JOURNAL_DELETE, color = PnColor.InkSoft, fontSize = 12.sp)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -187,9 +365,9 @@ private fun MealCard(meal: SavedMeal, onClick: () -> Unit, onDelete: () -> Unit)
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            Macro(Fr.NUTRIENT_PROTEIN_ABBR, meal.totals.proteinG)
-            Macro(Fr.NUTRIENT_CARBS_ABBR, meal.totals.carbohydratesG)
-            Macro(Fr.NUTRIENT_FAT_ABBR, meal.totals.fatG)
+            Macro(Strings.active.NUTRIENT_PROTEIN_ABBR, meal.totals.proteinG)
+            Macro(Strings.active.NUTRIENT_CARBS_ABBR, meal.totals.carbohydratesG)
+            Macro(Strings.active.NUTRIENT_FAT_ABBR, meal.totals.fatG)
         }
     }
 }
@@ -197,7 +375,7 @@ private fun MealCard(meal: SavedMeal, onClick: () -> Unit, onDelete: () -> Unit)
 @Composable
 private fun Macro(abbreviation: String, grams: Double) {
     Text(
-        text = "$abbreviation ${formatFrenchNumber(Math.round(grams * 10) / 10.0)} g",
+        text = "$abbreviation ${formatNumber(Math.round(grams * 10) / 10.0, LanguageSettings.effective)} g",
         color = PnColor.InkSoft,
         fontSize = 12.sp,
     )
@@ -206,9 +384,13 @@ private fun Macro(abbreviation: String, grams: Double) {
 /**
  * A date formatter *is* the right tool here, unlike for numbers. The corpus pins number rendering
  * because a separator changes the value a user reads; a date header has no such contract, and the
- * platform's French formatting is what a French user expects.
+ * platform's own formatting for the active language is what a user expects.
+ *
+ * A function, not a top-level `val`, because the active language can change at runtime — a cached
+ * formatter built once at first access would keep rendering in whichever language was active then.
  */
-private val dayFormatter = SimpleDateFormat("EEEE d MMMM", Locale.FRANCE)
+private fun dayFormatter(lang: String): SimpleDateFormat =
+    SimpleDateFormat("EEEE d MMMM", if (lang == "en") Locale.US else Locale.FRANCE)
 
 /** The one filled button in the app, from the design tokens rather than Material defaults. */
 @Composable

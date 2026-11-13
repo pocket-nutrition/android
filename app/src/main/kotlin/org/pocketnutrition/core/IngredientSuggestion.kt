@@ -13,10 +13,10 @@ import kotlinx.serialization.Serializable
  *
  * Most fields are nullable in the spec and genuinely absent in practice: `nutrition` came back null
  * for every result when this was written. Fields the spec defines but nothing reads (`nutrition`,
- * `densityGMl`, `unitLabelFr`, `unitLabelEn`) are deliberately not declared — the JSON decoder is
- * configured to ignore unknown keys, so they decode away harmlessly, and declaring them would suggest
- * something consults them. It also means two suggestions comparing equal have compared only the fields
- * that affect behaviour, which is the comparison the vectors make.
+ * `densityGMl`, `unitLabels`) are deliberately not declared — the JSON decoder is configured to
+ * ignore unknown keys, so they decode away harmlessly, and declaring them would suggest something
+ * consults them. It also means two suggestions comparing equal have compared only the fields that
+ * affect behaviour, which is the comparison the vectors make.
  */
 @Serializable
 data class IngredientSuggestion(
@@ -141,4 +141,11 @@ data class MealIngredient(
     val yieldFactors: Map<String, Double> = emptyMap(),
     val imageUrl: String? = null,
     val servingMode: String? = null,
+    /**
+     * Set once, at construction from an Open Food Facts product, and never toggled afterwards: the
+     * backend always analyses these rows at their own values (source "off_direct", cookingMethod
+     * "raw") regardless of what is requested, so the app locks the row to "raw" and stops offering a
+     * cooking-method choice for it. See `lockedToRawIfIndustrial` in [MealRow].
+     */
+    val isIndustrialProduct: Boolean = false,
 )

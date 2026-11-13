@@ -1,0 +1,294 @@
+{
+  "suite": "build-anchors-en",
+  "description": "The English wording of the build-anchors ladder: ¼ / Small / 1 serving / Large / Double, mirroring the French ¼ / Petite / 1 part / Grande / Double. Same branch logic as build-anchors (countable foods get counted, everything else gets the five named factors, both filtered against a minimum weight) — only the weight-mode labels and the ServingUnit shape (labels: [{lang, text}] rather than labelFr/labelEn) differ. Hand-authored: the sandbox stays French-only and has no English reference implementation to generate this from.",
+  "generatedBy": "hand-authored — sandbox is out of scope, no reference implementation exists",
+  "cases": [
+    {
+      "id": "weight-mode-uses-named-anchors",
+      "why": "The default path: no serving units at all.",
+      "input": {
+        "basePortionG": 75,
+        "servingUnits": [],
+        "servingMode": null,
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Small"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 serving"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Large"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "item-mode-uses-item-counts",
+      "why": "Countable foods are counted, not scaled — \"½ · 1 · 2 · 3 carrots\". The echoed ServingUnit is passed through unchanged, so its labels list is whatever the caller supplied.",
+      "input": {
+        "basePortionG": 74,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          }
+        ],
+        "servingMode": "item",
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 0.5
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 1
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 2
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          },
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "item-mode-drops-counts-under-5g",
+      "why": "Half a hazelnut is 4 g, which is not a useful button, so the 0.5 step is dropped and the set starts at 1.",
+      "input": {
+        "basePortionG": 8,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "hazelnut" }
+            ],
+            "volumeMl": 0,
+            "grams": 8
+          }
+        ],
+        "servingMode": "item",
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "hazelnut" }
+            ],
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 1
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "hazelnut" }
+            ],
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 2
+        },
+        {
+          "kind": "unit",
+          "unit": {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "hazelnut" }
+            ],
+            "volumeMl": 0,
+            "grams": 8
+          },
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "item-mode-without-an-item-unit-falls-back",
+      "why": "servingMode \"item\" is not sufficient on its own: with only a tablespoon available there is nothing to count, so the named factors apply.",
+      "input": {
+        "basePortionG": 80,
+        "servingUnits": [
+          {
+            "unit": "tablespoon",
+            "labels": [
+              { "lang": "en", "text": "tablespoon" }
+            ],
+            "volumeMl": 15,
+            "grams": 15
+          }
+        ],
+        "servingMode": "item",
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Small"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 serving"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Large"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "weight-mode-drops-factors-under-1g",
+      "why": "For a 2 g base portion the quarter step resolves to 0.5 g and is dropped, so the set starts at Small.",
+      "input": {
+        "basePortionG": 2,
+        "servingUnits": [],
+        "servingMode": null,
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Small"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 serving"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Large"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    },
+    {
+      "id": "weight-mode-ignores-an-available-item-unit",
+      "why": "An item unit is used only when servingMode says so.",
+      "input": {
+        "basePortionG": 74,
+        "servingUnits": [
+          {
+            "unit": "item",
+            "labels": [
+              { "lang": "en", "text": "carrot" }
+            ],
+            "volumeMl": 0,
+            "grams": 74
+          }
+        ],
+        "servingMode": "weight",
+        "lang": "en"
+      },
+      "expected": [
+        {
+          "kind": "factor",
+          "factor": 0.25,
+          "label": "¼"
+        },
+        {
+          "kind": "factor",
+          "factor": 0.5,
+          "label": "Small"
+        },
+        {
+          "kind": "factor",
+          "factor": 1,
+          "label": "1 serving"
+        },
+        {
+          "kind": "factor",
+          "factor": 1.5,
+          "label": "Large"
+        },
+        {
+          "kind": "factor",
+          "factor": 2,
+          "label": "Double"
+        }
+      ]
+    }
+  ]
+}
