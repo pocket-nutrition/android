@@ -38,6 +38,9 @@ jobs:
     timeout-minutes: 40
     # Holds the signing secrets. Add required reviewers to it to make every release need an approval.
     environment: release
+    permissions:
+      contents: read
+      checks: read # to require a green ci-success on the commit being released
     steps:
       # main is protected; the GitHub App is the one actor allowed to push the release commit to it.
       # Its token also makes that push trigger ci.yml, which skips the nightly for release commits.
@@ -54,6 +57,20 @@ jobs:
           fetch-depth: 0 # calver-next.sh and the changelog need the tags and the history
           token: ${{ steps.app.outputs.token }}
 
+      # main is normally reached through a pull request that passed CI, but an admin can push to it
+      # directly, and CI may still be running. Never sign a commit whose gates have not passed.
+      - name: Require a green CI run on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/check-runs?check_name=ci-success" \
+            --jq '.check_runs | sort_by(.started_at) | last | .conclusion // "missing"')"
+          if [ "${conclusion}" != "success" ]; then
+            echo "::error::ci-success on ${sha} is '${conclusion}': wait for CI to pass on main, then re-run"
+            exit 1
+          fi
+
       - uses: ./.github/actions/setup-android
 
       - name: Compute the next version
@@ -65,6 +82,7 @@ jobs:
           echo "next release: v${version} (versionCode ${code})"
 
       - name: Create the release commit and tag (local only)
+        id: commit
         env:
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           GH_TOKEN: ${{ steps.app.outputs.token }}
@@ -77,6 +95,7 @@ jobs:
 
           # F-Droid shows fastlane changelogs/<versionCode>.txt on the app page; it caps them at 500 bytes.
           previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+          echo "previous=${previous}" >> "${GITHUB_OUTPUT}"
           changelog="fastlane/metadata/android/en-US/changelogs/${CODE}.txt"
           mkdir -p "$(dirname "${changelog}")"
           git log --no-merges --format='- %s' ${previous:+"${previous}..HEAD"} \
@@ -172,9 +191,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           APK: ${{ steps.verify.outputs.apk }}
           CERT: ${{ steps.verify.outputs.cert }}
+          PREVIOUS: ${{ steps.commit.outputs.previous }}
         run: |
           # shellcheck disable=SC2016 # the backticks are a literal Markdown code fence
           notes="$(printf 'Signed APK. Signing certificate SHA-256:\n\n```\n%s\n```\n' "${CERT}")"
           gh release create "v${VERSION}" --verify-tag --latest --title "v${VERSION}" \
-            --notes "${notes}" --generate-notes \
+            --notes "${notes}" --generate-notes ${PREVIOUS:+--notes-start-tag "${PREVIOUS}"} \
             "${APK}" "${APK}.sha256"

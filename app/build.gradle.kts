@@ -62,8 +62,8 @@ android {
         // though the tag does not pad it. That orders correctly across month and year boundaries
         // (v2026.8.1 -> 20260801, v2026.9.1 -> 20260901, v2027.1.1 -> 20270101) and leaves room for 99
         // releases within a month, well under the 2_100_000_000 store ceiling.
-        versionCode = appVersion.getProperty("versionCode").toInt()
-        versionName = appVersion.getProperty("versionName")
+        versionCode = requireNotNull(appVersion.getProperty("versionCode")) { "versionCode missing from version.properties" }.toInt()
+        versionName = requireNotNull(appVersion.getProperty("versionName")) { "versionName missing from version.properties" }
     }
 
     signingConfigs {
