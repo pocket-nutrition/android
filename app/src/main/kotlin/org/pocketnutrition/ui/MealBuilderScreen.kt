@@ -67,6 +67,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -874,6 +875,13 @@ private fun SuggestionRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(SUGGESTION_ROW_HEIGHT)
+            // The whole row is the touch target — checkbox, thumbnail and label included. Only the
+            // trailing "+" used to react, so tapping the checkbox did nothing.
+            .clickable(
+                enabled = !alreadyAdded,
+                role = if (checked != null) Role.Checkbox else Role.Button,
+                onClick = onClick,
+            )
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

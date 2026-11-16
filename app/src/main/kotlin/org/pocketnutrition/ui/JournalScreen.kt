@@ -4,6 +4,8 @@ package org.pocketnutrition.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -422,16 +424,18 @@ fun PrimaryButton(text: String, onClick: () -> Unit, enabled: Boolean = true) {
             // and read as a stray line of text rather than a control you cannot press yet. iOS carries
             // the same treatment in PrimaryButtonStyle.
             .then(if (enabled) Modifier else Modifier.border(1.dp, PnColor.InkLine, shape))
-            .padding(vertical = 14.dp),
+            // The whole fill is the touch target. It used to wrap a TextButton, so only the label
+            // reacted and a tap on the green area around it did nothing.
+            .clip(shape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 24.dp),
         contentAlignment = Alignment.Center,
     ) {
-        TextButton(onClick = onClick, enabled = enabled) {
-            Text(
-                text = text,
-                color = if (enabled) PnColor.InkOnInverse else PnColor.InkSoft,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
+        Text(
+            text = text,
+            color = if (enabled) PnColor.InkOnInverse else PnColor.InkSoft,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
