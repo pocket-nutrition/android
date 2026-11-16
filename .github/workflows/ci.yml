@@ -2,7 +2,8 @@
 name: CI
 
 # Pull requests (including from forks) run the gates with a read-only token and no secrets.
-# A push to main runs the same gates and then mints a CalVer release (vYYYY.M.N).
+# A push to main runs the same gates and then refreshes the rolling "nightly" pre-release (debug APK).
+# Stable, signed releases are cut on demand by .github/workflows/release.yml.
 on:
   pull_request:
     branches: [main]
@@ -124,11 +125,16 @@ jobs:
             *" failure "*|*" cancelled "*) exit 1 ;;
           esac
 
-  # 4. Every commit on main becomes a release. Debug-signed APK only: release signing is
-  #    deliberately not set up here, so no keystore or secret is involved.
-  release:
-    name: Release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # 4. Every commit on main refreshes one rolling pre-release, tagged `nightly`, holding the debug APK.
+  #    It is a testing build: debug-signed, with the `.debug` application id, so it installs beside the
+  #    stable app rather than over it. The `nightly` tag never matches `v*`, so F-Droid, IzzyOnDroid and
+  #    Obtainium (which skips pre-releases by default) keep following the signed releases only.
+  #    Release commits are skipped: the signed release of that same commit already exists.
+  nightly:
+    name: Nightly
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && !startsWith(github.event.head_commit.message, 'chore(release):')
     needs: [contracts, test, build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -138,47 +144,19 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-android
 
-      # Reserves vYYYY.M.N on this commit; the tag is the version's single source of truth.
-      - name: Reserve CalVer tag
-        id: version
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          version="$(.github/scripts/calver-reserve.sh)"
-          IFS=. read -r year month patch <<< "${version}"
-          if [ "${patch}" -gt 99 ]; then
-            echo "::error::more than 99 releases this month: versionCode (YYYYMMNN) cannot represent ${version}"
-            exit 1
-          fi
-          code="$(printf '%d%02d%02d' "${year}" "${month}" "${patch}")"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          echo "code=${code}" >> "${GITHUB_OUTPUT}"
-          echo "reserved v${version} (versionCode ${code})"
-
       - name: Build debug APK
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          CODE: ${{ steps.version.outputs.code }}
-        run: ./gradlew assembleDebug "-PversionName=${VERSION}" "-PversionCode=${CODE}"
+        run: ./gradlew assembleDebug
 
-      - name: Create release
-        id: release
+      - name: Replace the nightly pre-release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          apk="pocket-nutrition-android-${VERSION}-debug.apk"
+          short="${GITHUB_SHA::7}"
+          apk="pocket-nutrition-android-nightly-${short}-debug.apk"
           cp app/build/outputs/apk/debug/*-debug.apk "${apk}"
           sha256sum "${apk}" > "${apk}.sha256"
-          gh release create "v${VERSION}" --verify-tag --generate-notes --title "v${VERSION}" \
+          gh release delete nightly --cleanup-tag --yes || true
+          gh release create nightly --prerelease --target "${GITHUB_SHA}" \
+            --title "Nightly (${short})" \
+            --notes "Debug build of ${GITHUB_SHA}, for testing. It installs beside the stable app (application id \`org.pocketnutrition.debug\`) and is signed with a throwaway debug key. Use the latest \`v*\` release for daily use." \
             "${apk}" "${apk}.sha256"
-
-      # A tag without a release is clutter, and the number would be skipped for nothing.
-      - name: Delete the reserved tag on failure
-        if: failure() && steps.release.outcome != 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          [ -n "${VERSION}" ] || exit 0
-          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" || true

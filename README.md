@@ -129,7 +129,7 @@ keyAlias=pocket-nutrition
 keyPassword=…
 ```
 
-If you set up your own CI, the equivalent secrets to configure are:
+The Release workflow reads the same values from secrets in the `release` environment:
 
 | Secret | Contents |
 |---|---|
@@ -137,6 +137,10 @@ If you set up your own CI, the equivalent secrets to configure are:
 | `ANDROID_KEYSTORE_PASSWORD` | store password |
 | `ANDROID_KEY_ALIAS` | key alias |
 | `ANDROID_KEY_PASSWORD` | key password |
+| `RELEASE_APP_PRIVATE_KEY` | private key of the GitHub App allowed to push the release commit to `main` |
+
+and from two repository variables: `RELEASE_APP_ID` (that app's ID) and `RELEASE_CERT_SHA256` (the expected
+signing certificate digest; the release fails if the APK was signed with anything else).
 
 > **Generate the keystore yourself and keep the only copies.** Lose it and this app can never be updated
 > under the same identity again — there is no recovery path, on any distribution channel. Take three
@@ -149,8 +153,8 @@ below; what remains are ordinary packaging requirements.
 
 | Channel | Status |
 |---|---|
-| GitHub Releases (signed APK) | recommended primary channel — attach the built APK plus a `.sha256` companion |
-| F-Droid | MPL-2.0 is an accepted free licence, there is no Play Services, and the barcode scanner uses ZXing (Apache-2.0) rather than Google ML Kit, which F-Droid would have rejected. The release dependency tree contains no Google Play Services, Firebase or ML Kit artifact. A recipe still has to be submitted to `fdroiddata`. Fastlane metadata is in `fastlane/metadata/android/` |
+| GitHub Releases (signed APK) | primary channel — the Release workflow attaches the signed APK, its `.sha256` and the certificate fingerprint. IzzyOnDroid and Obtainium pick releases up from here |
+| F-Droid | MPL-2.0 is an accepted free licence, there is no Play Services, and the barcode scanner uses ZXing (Apache-2.0) rather than Google ML Kit, which F-Droid would have rejected. The release dependency tree contains no Google Play Services, Firebase or ML Kit artifact. A recipe still has to be submitted to `fdroiddata`, using `Binaries:` + `AllowedAPKSigningKeys:` so F-Droid ships the APK signed here once its rebuild matches (reproducible build). It reads the version from `version.properties` at each tag. Fastlane metadata is in `fastlane/metadata/android/` |
 | Google Play | workable, but requires an **AAB** — you'd need a `bundleRelease`-based build step, not just `assembleRelease` |
 | Apple App Store | **viable** for the iOS client under MPL-2.0 — removing the AGPL §10/§6 conflict is why the client tier was relicensed |
 
@@ -164,10 +168,20 @@ below; what remains are ordinary packaging requirements.
 - **ci-success**: the single required status check; it fails if any gate above failed
 
 Pull requests from forks run with a read-only token and no secrets, and wait for a maintainer to approve
-the run. A push to `main` additionally creates a CalVer release `vYYYY.M.N` (for example `v2026.11.3`; N
-restarts at 1 each month) with the **debug** APK and its `.sha256` attached. `versionName` is the tag
-without the `v`; `versionCode` is `YYYYMMNN`. No signing key is involved, so these APKs are for testing,
-not for installing as an update to a signed build.
+the run. A push to `main` additionally replaces the rolling **`nightly`** pre-release with that commit's
+**debug** APK (application id `org.pocketnutrition.debug`, debug key): a testing build that installs beside
+the stable app.
+
+## Releases
+
+Stable releases are cut on demand: **Actions → Release → Run workflow** (`.github/workflows/release.yml`).
+The workflow computes the next CalVer version `vYYYY.M.N` (N restarts at 1 each month; `versionCode` is
+`YYYYMMNN`), writes it to `version.properties` with an F-Droid changelog in a `chore(release): vX` commit,
+builds and signs the APK from that commit, checks the certificate, then pushes the commit and the tag
+atomically and publishes the GitHub release. Nothing is pushed if the signed build fails.
+
+`version.properties` is the only source of the version: no build passes it on the command line, so a local
+build, CI and F-Droid's rebuild of a tag all produce the same APK. Do not edit it by hand.
 
 ## Contributing
 

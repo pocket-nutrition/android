@@ -28,8 +28,11 @@ a tag, and renders a token gallery. No meal builder yet.
 - `*.jks`, `*.keystore` and `key.properties` are gitignored. **Never commit one, never paste one into a
   file, never echo one into a log.** If you find one committed, treat it as a compromised key: it has to be
   replaced, not merely removed from the tree.
-- Do not make the release build fail when the keystore is absent. Unsigned-with-a-warning is the designed
-  behaviour, and the release job verifies with `apksigner` and reports which artefact it produced.
+- Do not make the release build fail when the keystore is absent. Unsigned is the designed behaviour for a
+  local or CI build. The Release workflow is the exception: it refuses to run without the signing secrets
+  and verifies the APK's certificate with `apksigner` before publishing.
+- Never edit `version.properties` by hand or pass `-PversionName`/`-PversionCode`: the Release workflow owns
+  the version, and F-Droid's reproducible rebuild depends on the tagged file being the only source.
 - Only the maintainer generates the keystore. An agent must never create one, because the passwords would
   then exist in a transcript.
 

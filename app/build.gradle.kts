@@ -27,6 +27,11 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseKeystore = keystoreProperties.getProperty("storeFile") != null
 
+/** versionName and versionCode, written by the Release workflow. See defaultConfig below. */
+val appVersion = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+
 android {
     namespace = "org.pocketnutrition"
     compileSdk = 37
@@ -45,20 +50,20 @@ android {
         minSdk = 26
         targetSdk = 37
         // CalVer. The git tag is `vYYYY.M.N` with a single-digit month (v2026.9.1, v2026.11.3); N restarts
-        // at 1 every month and CI mints the tag for every commit on main.
+        // at 1 every month.
         //
-        // versionName is the tag without the `v`. versionCode has to be a monotonically increasing Int,
-        // and a store rejects any upload that does not strictly exceed the last one, so it is derived
-        // from the same three numbers: YYYYMM * 100 + N, with the month zero-padded to two digits here
-        // even though the tag does not pad it. That orders correctly across month and year boundaries
+        // Both values come from version.properties, which only the Release workflow writes, in the commit
+        // it then tags. Nothing is passed on the command line, so every build of a given commit (local,
+        // CI, F-Droid's rebuild from the tag) reports the same version — required for F-Droid to verify
+        // its rebuild against our signed APK.
+        //
+        // versionCode has to be a monotonically increasing Int, and a store rejects any upload that does
+        // not strictly exceed the last one: YYYYMM * 100 + N, with the month zero-padded to two digits even
+        // though the tag does not pad it. That orders correctly across month and year boundaries
         // (v2026.8.1 -> 20260801, v2026.9.1 -> 20260901, v2027.1.1 -> 20270101) and leaves room for 99
         // releases within a month, well under the 2_100_000_000 store ceiling.
-        //
-        // CI passes both as `-PversionName=... -PversionCode=...` so the artefact reports the tag that
-        // built it. The literals below are only the defaults for local builds, where no tag exists yet;
-        // they do not need bumping per release.
-        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 20_260_804
-        versionName = (findProperty("versionName") as String?) ?: "2026.8.4"
+        versionCode = appVersion.getProperty("versionCode").toInt()
+        versionName = appVersion.getProperty("versionName")
     }
 
     signingConfigs {
@@ -83,6 +88,11 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
+            // AGP otherwise writes META-INF/version-control-info.textproto with the git revision it finds,
+            // or an error when it finds none (a worktree, a tarball, a differently-cloned checkout). That
+            // file was the only difference between two builds of the same commit, and F-Droid only ships
+            // our signed APK when its rebuild matches byte for byte. The tag already records the revision.
+            vcsInfo.include = false
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
