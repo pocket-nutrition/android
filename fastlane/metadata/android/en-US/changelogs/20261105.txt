@@ -1,0 +1,5 @@
+- fix: read the signing digest in any apksigner format and drop the nightly release
+- build(deps): bump the actions group across 1 directory with 3 updates (#3)
+- fix: make primary buttons and search rows fully tappable
+- fix: require a green ci-success before signing a release
+- feat: cut signed releases on demand with the version committed to the tag
