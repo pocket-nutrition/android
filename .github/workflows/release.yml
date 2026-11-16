@@ -46,12 +46,12 @@ jobs:
       # Its token also makes that push trigger ci.yml, which skips the nightly for release commits.
       - name: Mint a token for the release app
         id: app
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0 # calver-next.sh and the changelog need the tags and the history
@@ -170,7 +170,7 @@ jobs:
 
       # Kept so the release can be finished by hand if publishing fails after the push.
       - name: Upload the signed APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-release
           path: |
