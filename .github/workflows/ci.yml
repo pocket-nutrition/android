@@ -2,8 +2,8 @@
 name: CI
 
 # Pull requests (including from forks) run the gates with a read-only token and no secrets.
-# A push to main runs the same gates and then refreshes the rolling "nightly" pre-release (debug APK).
-# Stable, signed releases are cut on demand by .github/workflows/release.yml.
+# A push to main runs the same gates; nothing is published. The debug APK of every run is kept as the
+# `apk-debug` artifact. Stable, signed releases are cut on demand by .github/workflows/release.yml.
 on:
   pull_request:
     branches: [main]
@@ -124,39 +124,3 @@ jobs:
           case " ${RESULTS} " in
             *" failure "*|*" cancelled "*) exit 1 ;;
           esac
-
-  # 4. Every commit on main refreshes one rolling pre-release, tagged `nightly`, holding the debug APK.
-  #    It is a testing build: debug-signed, with the `.debug` application id, so it installs beside the
-  #    stable app rather than over it. The `nightly` tag never matches `v*`, so F-Droid, IzzyOnDroid and
-  #    Obtainium (which skips pre-releases by default) keep following the signed releases only.
-  #    Release commits are skipped: the signed release of that same commit already exists.
-  nightly:
-    name: Nightly
-    if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && !startsWith(github.event.head_commit.message, 'chore(release):')
-    needs: [contracts, test, build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-android
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Replace the nightly pre-release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          short="${GITHUB_SHA::7}"
-          apk="pocket-nutrition-android-nightly-${short}-debug.apk"
-          cp app/build/outputs/apk/debug/*-debug.apk "${apk}"
-          sha256sum "${apk}" > "${apk}.sha256"
-          gh release delete nightly --cleanup-tag --yes || true
-          gh release create nightly --prerelease --target "${GITHUB_SHA}" \
-            --title "Nightly (${short})" \
-            --notes "Debug build of ${GITHUB_SHA}, for testing. It installs beside the stable app (application id \`org.pocketnutrition.debug\`) and is signed with a throwaway debug key. Use the latest \`v*\` release for daily use." \
-            "${apk}" "${apk}.sha256"

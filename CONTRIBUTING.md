@@ -107,7 +107,7 @@ a round trip.
   so history stays linear.
 - If you contribute from a fork, the workflow waits for a maintainer to approve it. It runs with a
   read-only token and no secrets.
-- Every commit merged to `main` refreshes the `nightly` pre-release (debug APK, for testing).
+- Every commit merged to `main` runs the same gates; its debug APK is kept as the `apk-debug` artifact.
 - Stable releases are cut by a maintainer with the Release workflow, which picks the CalVer version
   (`vYYYY.M.N`), commits it to `version.properties` and publishes a signed APK. You never pick a version
   number, edit `version.properties` or write a changelog; release notes are generated from the merged pull

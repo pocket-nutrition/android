@@ -43,7 +43,6 @@ jobs:
       checks: read # to require a green ci-success on the commit being released
     steps:
       # main is protected; the GitHub App is the one actor allowed to push the release commit to it.
-      # Its token also makes that push trigger ci.yml, which skips the nightly for release commits.
       - name: Mint a token for the release app
         id: app
         uses: actions/create-github-app-token@v3
@@ -146,8 +145,15 @@ jobs:
           src="app/build/outputs/apk/release/app-release.apk"
           [ -f "${src}" ] || { echo "::error::no signed APK at ${src}"; ls app/build/outputs/apk/release/; exit 1; }
           "${apksigner}" verify --verbose --print-certs "${src}" | tee apksigner.txt
-          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' apksigner.txt)"
-          [ -n "${actual}" ] || { echo "::error::could not read the certificate digest"; exit 1; }
+          # The label varies with the apksigner version and flags ("Signer #1 certificate SHA-256 digest:",
+          # "V3.0 Signer: certificate SHA-256 digest:"), so match the common suffix and require exactly one
+          # distinct certificate across all signature schemes.
+          digests="$(grep -E 'certificate SHA-256 digest: ' apksigner.txt | awk '{print $NF}' | sort -u)"
+          if [ "$(printf '%s\n' "${digests}" | grep -c .)" -ne 1 ]; then
+            echo "::error::expected exactly one signing certificate, found: ${digests:-none}"
+            exit 1
+          fi
+          actual="${digests}"
 
           # Guards against signing with the wrong keystore: such an APK could never update existing installs.
           expected="$(echo "${EXPECTED_CERT_SHA256}" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"

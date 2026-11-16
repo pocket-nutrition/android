@@ -168,9 +168,8 @@ below; what remains are ordinary packaging requirements.
 - **ci-success**: the single required status check; it fails if any gate above failed
 
 Pull requests from forks run with a read-only token and no secrets, and wait for a maintainer to approve
-the run. A push to `main` additionally replaces the rolling **`nightly`** pre-release with that commit's
-**debug** APK (application id `org.pocketnutrition.debug`, debug key): a testing build that installs beside
-the stable app.
+the run. Nothing is published on a push to `main`: the debug APK of each run is kept as the `apk-debug`
+artifact for 14 days.
 
 ## Releases
 
