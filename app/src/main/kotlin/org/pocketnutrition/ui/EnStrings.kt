@@ -202,7 +202,7 @@ object EnStrings : AppStrings {
             "has been received (7 days at most once sent), then deleted. A recording that was never sent stays on the phone " +
             "until it is sent or deleted."
     override val VOICE_URL_LABEL = "Server address (https)"
-    override val VOICE_KEY_LABEL = "API key"
+    override val VOICE_KEY_LABEL = "API key (self-hosted servers only)"
     override val VOICE_KEY_STORED = "A key is saved. Leave blank to keep it."
     override val VOICE_SAVE = "Save"
     override val VOICE_CLEAR = "Clear"
@@ -219,11 +219,8 @@ object EnStrings : AppStrings {
         else -> "This cannot be undone."
     }
     override val VOICE_DELETE_CONFIRM = "Delete"
-    override fun voiceMissing(missingUrl: Boolean, missingKey: Boolean) = when {
-        missingUrl && missingKey -> "The server address and the API key are missing. Set them in Settings."
-        missingUrl -> "The server address (https) is missing. Set it in Settings."
-        else -> "The API key is missing. Set it in Settings."
-    }
+    override val VOICE_NEEDS_VAULT =
+        "Voice and photo results go to your cloud vault, encrypted for this phone only. Log in to the cloud vault in Settings first."
     override val VOICE_CANCEL = "Cancel"
     override val VOICE_SEND_NOW = "Send now"
     override val VOICE_RESEND = "Send again"
@@ -249,6 +246,7 @@ object EnStrings : AppStrings {
         EntryIssue.FAILED ->
             (serverMessage ?: "Analysis failed") + if (audioKept) " — the recording is still on your phone" else ""
         EntryIssue.AUDIO_LOST -> "The recording is no longer available on this phone"
+        EntryIssue.VAULT_REQUIRED -> "Waiting — log in to the cloud vault in Settings to send it"
     }
     override val VOICE_ERR_TOO_SHORT = "Recording too short."
     override val VOICE_ERR_RECORDER = "Could not start recording."

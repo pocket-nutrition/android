@@ -4,8 +4,18 @@ package org.pocketnutrition.recognition
 import java.net.URI
 import java.net.URISyntaxException
 
-/** A usable server address plus the key to talk to it. */
-data class RecognitionConfig(val baseUrl: String, val apiKey: String)
+/** The official recognition server, used until another one is saved. It needs no key. */
+const val DEFAULT_RECOGNITION_URL = "https://recognition.pocketnutrition.org"
+
+/**
+ * A usable server address plus, only for servers that still use a shared key, that key. On the official
+ * server there is none: a capture is authenticated by its vault drop token, and its ticket by the secret
+ * the upload returned.
+ */
+data class RecognitionConfig(val baseUrl: String, val apiKey: String?) {
+    /** Never prints the key. */
+    override fun toString(): String = "RecognitionConfig(baseUrl=$baseUrl, apiKey=${if (apiKey == null) "none" else "…"})"
+}
 
 /**
  * https only, with a host. `http` is rejected on purpose: the API key travels in a header, and neither
@@ -47,10 +57,13 @@ fun originOf(raw: String): String? {
 /** The host to show the user at save time ("the key will be sent to ..."). */
 fun hostOf(raw: String): String? = try { URI(raw.trim()).host } catch (e: URISyntaxException) { null }
 
-/** `null` unless both halves are usable — the feature is "configured" only then. */
-fun recognitionConfigOrNull(url: String?, apiKey: String?): RecognitionConfig? {
-    if (url == null || !isValidRecognitionUrl(url)) return null
-    val key = apiKey?.trim()
-    if (key == null || !isValidApiKey(key)) return null
-    return RecognitionConfig(normalizeRecognitionUrl(url), key)
+/**
+ * The saved server, or the official one when none is saved (or the saved text no longer validates). The
+ * key is attached only when it was saved together with a valid URL: [RecognitionSettings.save] never lets
+ * a key outlive a change of host, so a key without its URL is never sent anywhere.
+ */
+fun recognitionConfig(url: String?, apiKey: String?): RecognitionConfig {
+    val saved = url?.takeIf { isValidRecognitionUrl(it) }
+    val key = apiKey?.trim()?.takeIf { saved != null && isValidApiKey(it) }
+    return RecognitionConfig(normalizeRecognitionUrl(saved ?: DEFAULT_RECOGNITION_URL), key)
 }

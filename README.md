@@ -27,7 +27,7 @@ generated design tokens, and a signing path that fails loudly rather than silent
 Since the first public release the app is also bilingual (French and English), has a Settings screen to
 point it at your own backend server, and can capture a meal by voice: the clip is recorded only while you
 hold Record, uploaded to a recognition server you configure in Settings, and kept on the phone just until
-the result has come back. It is off until a server is set. Barcode scanning now decodes with ZXing instead
+the result has come back, sealed for the phone, through your vault. It is off until a server is set. Barcode scanning now decodes with ZXing instead
 of Google ML Kit, so the whole dependency tree is free software.
 
 ## Why not cross-platform

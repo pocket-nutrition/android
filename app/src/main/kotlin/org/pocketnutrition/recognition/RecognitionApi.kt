@@ -14,6 +14,7 @@ import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.pocketnutrition.vault.VaultDropGrant
 
 // Client for the voice-recognition server. This endpoint family is NOT part of contracts 2.0.0, so it is
 // hand-written against the shared client spec. Same transport choice as PocketNutritionApi
@@ -29,6 +30,12 @@ sealed class RecognitionException(message: String) : Exception(message) {
     object TimedOut : RecognitionException("timed out")
     object Malformed : RecognitionException("malformed response")
     object SecureConnectionFailed : RecognitionException("secure connection failed")
+
+    /**
+     * The server refused the vault drop token: already used (409), or no longer valid (401 on a server
+     * where no shared key is in use). Not the person's mistake: a new drop is minted and the upload retried.
+     */
+    object DropRefused : RecognitionException("drop refused")
     class BadStatus(val code: Int) : RecognitionException("status $code")
 }
 
@@ -60,27 +67,36 @@ object RecognitionApi {
     private class Response(val status: Int, val body: String)
 
     /**
-     * `POST /captures`, always async. Returns the new ticket (HTTP 202). [media] says whether the bytes
-     * are a voice clip or a meal photo (see [mediaFor]).
+     * `POST /captures`, always async. Returns the new ticket (HTTP 202) with its secret. [media] says whether
+     * the bytes are a voice clip or a meal photo (see [mediaFor]). The [grant] tells the worker where to
+     * seal the result: it always goes to the vault, never back to this server.
      */
-    suspend fun upload(config: RecognitionConfig, audio: ByteArray, media: CaptureMedia = VOICE_MEDIA): Ticket {
+    suspend fun upload(
+        config: RecognitionConfig,
+        audio: ByteArray,
+        grant: VaultDropGrant,
+        media: CaptureMedia = VOICE_MEDIA,
+    ): Ticket {
         if (audio.size > MAX_UPLOAD_BYTES) throw RecognitionException.TooLarge
         val boundary = newMultipartBoundary()
         val body = buildMultipartBody(
             boundary = boundary,
-            fields = listOf("mode" to "async"),
+            fields = captureFields(grant),
             file = MultipartFile(AUDIO_FIELD, media.fileName, media.contentType, audio),
         )
         val response = call(
             url = "${config.baseUrl}/captures",
             method = "POST",
-            config = config,
+            credential = config.apiKey,
             readTimeoutMs = UPLOAD_READ_TIMEOUT_MS,
             contentType = multipartContentType(boundary),
             body = body,
         )
         return when {
             response.status in 200..299 -> decode(response.body)
+            response.status == 409 -> throw RecognitionException.DropRefused
+            // Without a shared key the only credential was the drop token: the vault no longer vouches for it.
+            response.status == 401 && config.apiKey == null -> throw RecognitionException.DropRefused
             response.status == 401 -> throw RecognitionException.Unauthorized
             response.status == 413 -> throw RecognitionException.TooLarge
             response.status == 415 -> throw RecognitionException.UnsupportedMedia
@@ -97,6 +113,7 @@ object RecognitionApi {
         id: String,
         waitSeconds: Int? = null,
         knownStatus: String? = null,
+        ticketSecret: String? = null,
     ): TicketFetch {
         val query = buildString {
             if (waitSeconds != null) append("?wait=$waitSeconds")
@@ -107,7 +124,7 @@ object RecognitionApi {
         val response = call(
             url = "${config.baseUrl}/captures/${encode(id)}$query",
             method = "GET",
-            config = config,
+            credential = recognitionCredential(ticketSecret, config.apiKey),
             readTimeoutMs = readTimeout,
         )
         return when {
@@ -120,11 +137,11 @@ object RecognitionApi {
     }
 
     /** `DELETE /captures/{id}`. 204, 404 and 410 all mean "nothing left to delete". */
-    suspend fun delete(config: RecognitionConfig, id: String) {
+    suspend fun delete(config: RecognitionConfig, id: String, ticketSecret: String? = null) {
         val response = call(
             url = "${config.baseUrl}/captures/${encode(id)}",
             method = "DELETE",
-            config = config,
+            credential = recognitionCredential(ticketSecret, config.apiKey),
             readTimeoutMs = PLAIN_READ_TIMEOUT_MS,
         )
         when {
@@ -150,7 +167,7 @@ object RecognitionApi {
     private suspend fun call(
         url: String,
         method: String,
-        config: RecognitionConfig,
+        credential: String?,
         readTimeoutMs: Int,
         contentType: String? = null,
         body: ByteArray? = null,
@@ -174,7 +191,7 @@ object RecognitionApi {
                 opened.instanceFollowRedirects = false
                 opened.useCaches = false
                 opened.setRequestProperty("Cache-Control", "no-store")
-                opened.setRequestProperty("Authorization", "Bearer ${config.apiKey}")
+                if (credential != null) opened.setRequestProperty("Authorization", "Bearer $credential")
                 opened.setRequestProperty("Accept", "application/json")
                 if (body != null) {
                     opened.doOutput = true
@@ -209,3 +226,12 @@ object RecognitionApi {
         }
     }
 }
+
+/** The form fields of one upload: async mode plus the four that route the result into the vault. */
+internal fun captureFields(grant: VaultDropGrant): List<Pair<String, String>> = listOf(
+    "mode" to "async",
+    "vault_url" to grant.vaultUrl,
+    "vault_token" to grant.token,
+    "vault_record_id" to grant.recordId,
+    "inbox_public_key" to grant.inboxPublicKey,
+)

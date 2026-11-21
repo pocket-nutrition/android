@@ -36,15 +36,15 @@ class RecognitionUrlTest {
     }
 
     @Test
-    fun `config is present only when both url and key are usable`() {
-        assertEquals(
-            RecognitionConfig("https://example.org", "k"),
-            recognitionConfigOrNull("https://example.org/", " k "),
-        )
-        assertNull(recognitionConfigOrNull(null, "k"))
-        assertNull(recognitionConfigOrNull("https://example.org", null))
-        assertNull(recognitionConfigOrNull("https://example.org", "   "))
-        assertNull(recognitionConfigOrNull("http://example.org", "k"))
+    fun `config uses the saved url and its key, and the official server otherwise`() {
+        assertEquals(RecognitionConfig("https://example.org", "k"), recognitionConfig("https://example.org/", " k "))
+        // No key is fine: the official server authenticates by drop token.
+        assertEquals(RecognitionConfig("https://example.org", null), recognitionConfig("https://example.org", null))
+        assertEquals(RecognitionConfig("https://example.org", null), recognitionConfig("https://example.org", "   "))
+        // Nothing saved, or an unusable URL: the official server, and a stored key is never sent to it.
+        assertEquals(RecognitionConfig(DEFAULT_RECOGNITION_URL, null), recognitionConfig(null, null))
+        assertEquals(RecognitionConfig(DEFAULT_RECOGNITION_URL, null), recognitionConfig(null, "k"))
+        assertEquals(RecognitionConfig(DEFAULT_RECOGNITION_URL, null), recognitionConfig("http://example.org", "k"))
     }
 
     @Test
@@ -54,7 +54,7 @@ class RecognitionUrlTest {
         listOf("", "  ", "has space", "new\nline", "ta\tb", "caf\u00e9", "\u0000", "a".repeat(513)).forEach {
             assertFalse("'$it'", isValidApiKey(it))
         }
-        assertNull(recognitionConfigOrNull("https://example.org", "bad\nkey"))
+        assertNull(recognitionConfig("https://example.org", "bad\nkey").apiKey)
     }
 
     @Test

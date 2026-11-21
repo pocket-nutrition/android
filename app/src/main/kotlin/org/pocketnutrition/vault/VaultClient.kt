@@ -44,6 +44,8 @@ interface VaultServer {
      * `base_version` is stale; `two_factor_required` / `invalid_two_factor` as at login.
      */
     suspend fun resetPassphrase(apiKey: String, request: VaultResetPassphraseRequest): VaultPassphraseChanged
+    /** Mints a write-only drop token for one new record (a capture result the worker will deposit). */
+    suspend fun createDrop(apiKey: String, request: VaultDropRequest): VaultDropToken
     /** Records changed after [since], in order. A page may be partial: see `hasMore`. */
     suspend fun sync(apiKey: String, since: Long): VaultSyncPage
     /** Writes one record the owner encrypted. `revision` is the current revision + 1. */
@@ -92,6 +94,11 @@ class VaultClient(private val baseUrl: String) : VaultServer {
             listOf("account", "passphrase", "reset"), "POST",
             body = vaultJson.encodeToString(VaultResetPassphraseRequest.serializer(), request), key = apiKey,
         ),
+    )
+
+    override suspend fun createDrop(apiKey: String, request: VaultDropRequest): VaultDropToken = decode(
+        VaultDropToken.serializer(),
+        call(listOf("drops"), "POST", body = vaultJson.encodeToString(VaultDropRequest.serializer(), request), key = apiKey),
     )
 
     override suspend fun sync(apiKey: String, since: Long): VaultSyncPage =

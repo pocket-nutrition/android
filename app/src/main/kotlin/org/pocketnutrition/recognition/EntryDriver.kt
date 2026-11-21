@@ -3,12 +3,26 @@ package org.pocketnutrition.recognition
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import org.pocketnutrition.vault.VaultCollected
+import org.pocketnutrition.vault.VaultException
 
 /** Pause after a long poll that came back unchanged, so a server that ignores `wait` is not hammered. */
 private const val UNCHANGED_PAUSE_MS = 1_000L
 
 /** Consecutive unparseable answers while polling before the entry shows a visible error. */
 private const val MAX_MALFORMED = 5
+
+/**
+ * Times a delivered capture may be missing from the vault before it counts as lost. The worker deposits
+ * before it reports done, so a miss is a sync lag at most; bounded so a delivery that never lands ends.
+ */
+internal const val MAX_VAULT_MISSES = 8
+
+/**
+ * Raised by an upload step when no vault account is linked: results only travel through the vault, so
+ * nothing is sent and the recording waits on the phone until one is.
+ */
+class VaultRequiredException : Exception("vault account required")
 
 /**
  * Drives one entry until it needs nothing more from the network: uploads while it is
@@ -23,6 +37,11 @@ private const val MAX_MALFORMED = 5
  * - 413/415 end in `UNRECOVERABLE` (audio kept); redirects and other 4xx stay pending and stop the loop
  *   until the user acts; a TLS failure backs off like a network error but is not reported as offline.
  * - 404 / 410 / failed become `NEEDS_RETRY` (audio present) or `UNRECOVERABLE`.
+ * - A `done` ticket carries no result: the worker sealed it into the vault. [collect] fetches it from
+ *   there before the entry turns `READY`. Offline or not there yet: retried after a pause (a missing record
+ *   [MAX_VAULT_MISSES] times at most). Unreadable: the entry ends as a failure that can be sent again.
+ * - No vault account ([VaultRequiredException] from [upload]): the entry stays pending, flagged, and the
+ *   loop stops until the person links one.
  * - On `READY`, once the entry has been persisted ([onUpdate] returned `true`), [afterReady] is called
  *   for the best-effort server DELETE and the pending-delete flag is cleared on success. If the DELETE
  *   fails the flag stays, and [settleReadyTicket] retries later. A failed persist never triggers a DELETE.
@@ -38,6 +57,7 @@ suspend fun driveEntry(
     upload: suspend (Entry) -> Ticket,
     fetch: suspend (ticketId: String, waitSeconds: Int?, knownStatus: String?) -> TicketFetch,
     afterReady: suspend (ticketId: String) -> Unit,
+    collect: suspend (Entry) -> VaultCollected = { VaultCollected.Unreadable },
     onUpdate: (Entry) -> Boolean,
     onOffline: (Boolean) -> Unit,
     onUnauthorized: () -> Unit,
@@ -49,6 +69,23 @@ suspend fun driveEntry(
     var failures = 0
     var malformed = 0
     var firstRead = true
+    var vaultMisses = 0
+    var vaultWaits = 0
+
+    /** The delivered result from the vault; `null` means "not yet", ask again after a pause. */
+    suspend fun collectDelivered(entry: Entry): VaultCollected? {
+        if (entry.vaultRecordId == null) return VaultCollected.Unreadable
+        val got = try {
+            collect(entry)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: VaultException) {
+            onOffline(e is VaultException.Offline)
+            return null
+        }
+        if (got != VaultCollected.NotThere) return got
+        return if (++vaultMisses >= MAX_VAULT_MISSES) VaultCollected.Unreadable else null
+    }
 
     /** Applies [next] and reports whether it was persisted. */
     fun update(next: Entry): Boolean {
@@ -87,6 +124,9 @@ suspend fun driveEntry(
             } catch (e: AudioMissingException) {
                 update(current.audioLost())
                 continue
+            } catch (e: VaultRequiredException) {
+                update(current.vaultRequired())
+                return
             } catch (e: RecognitionException) {
                 val failure = classifyUploadFailure(e)
                 update(current.uploadFailed(failure))
@@ -105,6 +145,8 @@ suspend fun driveEntry(
             failures = 0
             onOffline(false)
             firstRead = false
+            // The upload step stored the ticket with its secret and vault record: build on that copy.
+            current = reload(current) ?: return
             finishIfReady(update(current.uploaded(ticket, nowMs())))
             continue
         }
@@ -142,8 +184,21 @@ suspend fun driveEntry(
         onOffline(false)
         when (outcome) {
             is TicketFetch.Found -> {
+                var ticket = outcome.ticket
+                if (isDeliveredToVault(ticket)) {
+                    when (val got = collectDelivered(current)) {
+                        null -> {
+                            firstRead = false
+                            pause(backoffDelayMs(vaultWaits++))
+                            continue
+                        }
+                        is VaultCollected.Result -> ticket = ticket.copy(result = got.result)
+                        // No result: applied as is, the entry ends as a failure it can retry.
+                        VaultCollected.NotThere, VaultCollected.Unreadable -> Unit
+                    }
+                }
                 val before = current.lastStatus
-                finishIfReady(update(current.applyServer(outcome.ticket, nowMs())))
+                finishIfReady(update(current.applyServer(ticket, nowMs())))
                 if (!firstRead && current.state == EntryState.PROCESSING && current.lastStatus == before) {
                     pause(UNCHANGED_PAUSE_MS)
                 }
@@ -177,7 +232,8 @@ suspend fun refreshOnce(
         return null
     }
     return when (outcome) {
-        is TicketFetch.Found -> entry.applyServer(outcome.ticket, nowMs())
+        // Delivered to the vault: only the driver collects it, so the entry is left for it to finish.
+        is TicketFetch.Found -> if (isDeliveredToVault(outcome.ticket)) null else entry.applyServer(outcome.ticket, nowMs())
         TicketFetch.Gone -> entry.ticketGone()
         TicketFetch.Expired -> entry.ticketExpired()
     }

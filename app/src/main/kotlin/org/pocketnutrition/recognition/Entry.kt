@@ -31,6 +31,9 @@ enum class EntryState {
 enum class EntryIssue {
     OFFLINE, SERVER_ERROR, UNAUTHORIZED, TOO_LARGE, UNSUPPORTED, REJECTED, REDIRECTED, SECURE_CONNECTION,
     EXPIRED, GONE, FAILED, AUDIO_LOST,
+
+    /** Not sent: results only travel through the vault, and this phone is not linked to an account. */
+    VAULT_REQUIRED,
 }
 
 enum class UploadFailure { OFFLINE, SERVER_ERROR, UNAUTHORIZED, TOO_LARGE, UNSUPPORTED, REJECTED, REDIRECTED, SECURE_CONNECTION }
@@ -60,6 +63,8 @@ fun classifyUploadFailure(e: RecognitionException): UploadFailure = when (e) {
     RecognitionException.UnsupportedMedia -> UploadFailure.UNSUPPORTED
     RecognitionException.Malformed -> UploadFailure.SERVER_ERROR
     RecognitionException.SecureConnectionFailed -> UploadFailure.SECURE_CONNECTION
+    // A fresh drop is minted on the next attempt: retry on its own, like a server hiccup.
+    RecognitionException.DropRefused -> UploadFailure.SERVER_ERROR
     is RecognitionException.BadStatus -> when {
         e.code in 300..399 -> UploadFailure.REDIRECTED
         e.code >= 500 || e.code == 408 || e.code == 429 -> UploadFailure.SERVER_ERROR
@@ -87,16 +92,22 @@ data class Entry(
     val ticketDeletePending: Boolean = false,
     /** A meal photo, not a voice clip. Kept here because the file (whose extension says it) is released. */
     val isPhoto: Boolean = false,
+    /** The ticket's own secret (from the upload answer): authenticates reads and deletes of that ticket. */
+    val ticketSecret: String? = null,
+    /** The vault record the worker deposits this capture's result in, sealed to this phone. */
+    val vaultRecordId: String? = null,
 ) {
     /** Takes what the server now says. A ready entry never touches the network again, so it ignores this. */
     fun applyServer(ticket: Ticket, nowMs: Long): Entry {
         if (state == EntryState.READY) return this
         val withTicket = copy(ticketId = ticket.id, serverExpiresAtEpochMs = secondsToEpochMs(ticket.expiresAt))
         return when (ticket.status) {
-            "done" -> withTicket.copy(
+            // "Done" with no result is a server fault (or a vault delivery that could not be read), not an
+            // empty meal: nothing is released, and the recording can be sent again.
+            "done" -> if (ticket.result == null) withTicket.dead(EntryIssue.FAILED, null) else withTicket.copy(
                 state = EntryState.READY,
                 lastStatus = ticket.status,
-                result = ticket.result ?: RecognitionResult(),
+                result = ticket.result,
                 resultFetchedAtEpochMs = nowMs,
                 ticketDeletePending = true,
                 audioFile = null,
@@ -113,9 +124,22 @@ data class Entry(
         }
     }
 
-    /** The upload returned a ticket. */
-    fun uploaded(ticket: Ticket, nowMs: Long): Entry =
-        copy(issue = null, error = null).applyServer(ticket, nowMs)
+    /**
+     * The upload returned a ticket; [vaultRecordId] is where its result will be deposited. Applied twice for
+     * one upload (by the network glue, then by the driver on the stored copy), so values already recorded
+     * are kept when this call does not bring new ones.
+     */
+    fun uploaded(ticket: Ticket, nowMs: Long, vaultRecordId: String? = null): Entry =
+        copy(
+            issue = null,
+            error = null,
+            ticketSecret = ticket.secret ?: ticketSecret,
+            vaultRecordId = vaultRecordId ?: this.vaultRecordId,
+        ).applyServer(ticket, nowMs)
+
+    /** Nothing was sent: a vault account must be linked first. The recording waits on the phone. */
+    fun vaultRequired(): Entry =
+        if (state == EntryState.PENDING_UPLOAD) copy(issue = EntryIssue.VAULT_REQUIRED) else this
 
     fun ticketGone(): Entry = if (state == EntryState.READY) this else dead(EntryIssue.GONE, null)
 
@@ -142,6 +166,8 @@ data class Entry(
             copy(
                 state = EntryState.PENDING_UPLOAD,
                 ticketId = null,
+                ticketSecret = null,
+                vaultRecordId = null,
                 serverExpiresAtEpochMs = null,
                 lastStatus = null,
                 issue = null,
@@ -188,7 +214,8 @@ fun voiceBadge(entries: List<Entry>): VoiceBadge = VoiceBadge(
     readyCount = entries.count { it.state == EntryState.READY },
     needsAttention = entries.any {
         it.state == EntryState.NEEDS_RETRY ||
-            (it.state == EntryState.PENDING_UPLOAD && it.issue == EntryIssue.UNAUTHORIZED)
+            (it.state == EntryState.PENDING_UPLOAD &&
+                (it.issue == EntryIssue.UNAUTHORIZED || it.issue == EntryIssue.VAULT_REQUIRED))
     },
 )
 

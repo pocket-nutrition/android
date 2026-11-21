@@ -51,7 +51,17 @@ data class Ticket(
     val result: RecognitionResult? = null,
     /** A server-written message when [status] is `failed`; shown as received. */
     val error: String? = null,
-)
+    /** `delivered` when the worker sealed the result into the user's vault: the server never holds it. */
+    val delivery: String? = null,
+    /**
+     * Only in the answer to `POST /captures`: authenticates every later read or delete of this one ticket,
+     * so a phone without a shared key can follow it.
+     */
+    val secret: String? = null,
+) {
+    /** Never prints the secret. */
+    override fun toString(): String = "Ticket(id=$id, status=$status, delivery=$delivery)"
+}
 
 internal val recognitionJson = Json { ignoreUnknownKeys = true }
 
@@ -69,23 +79,39 @@ private fun String.capped(max: Int) = if (length <= max) this else take(max)
 /** Truncates and limits everything a server controls. Pure; applied by [decodeTicket]. */
 fun Ticket.sanitized(): Ticket = copy(
     error = error?.capped(MAX_ERROR_CHARS),
-    result = result?.let { r ->
-        r.copy(
-            transcript = r.transcript.capped(MAX_TRANSCRIPT_CHARS),
-            language = r.language?.capped(16),
-            items = r.items.take(MAX_ITEMS).map { item ->
-                item.copy(
-                    rawText = item.rawText.capped(MAX_FIELD_CHARS),
-                    unit = item.unit?.capped(32),
-                    cookingMethod = item.cookingMethod?.capped(32),
-                    candidates = item.candidates.take(MAX_CANDIDATES).map { c ->
-                        c.copy(ingredientId = c.ingredientId.capped(128), name = c.name.capped(MAX_FIELD_CHARS))
-                    },
-                )
+    delivery = delivery?.capped(32),
+    secret = secret?.takeIf { it.length <= MAX_SECRET_CHARS && isValidTicketSecret(it) },
+    result = result?.sanitized(),
+)
+
+/** The same limits for a result that arrives by another road (a vault drop). */
+fun RecognitionResult.sanitized(): RecognitionResult = copy(
+    transcript = transcript.capped(MAX_TRANSCRIPT_CHARS),
+    language = language?.capped(16),
+    items = items.take(MAX_ITEMS).map { item ->
+        item.copy(
+            rawText = item.rawText.capped(MAX_FIELD_CHARS),
+            unit = item.unit?.capped(32),
+            cookingMethod = item.cookingMethod?.capped(32),
+            candidates = item.candidates.take(MAX_CANDIDATES).map { c ->
+                c.copy(ingredientId = c.ingredientId.capped(128), name = c.name.capped(MAX_FIELD_CHARS))
             },
         )
     },
 )
+
+internal const val MAX_SECRET_CHARS = 256
+
+/** A secret goes back in an HTTP header: visible ASCII only, or it is dropped. */
+private fun isValidTicketSecret(value: String): Boolean = value.isNotEmpty() && value.all { it.code in 0x21..0x7E }
+
+/** `done`, and the result went to the vault instead of staying on the ticket. */
+fun isDeliveredToVault(ticket: Ticket): Boolean =
+    ticket.status == "done" && ticket.result == null && ticket.delivery == "delivered"
+
+/** What goes in `Authorization: Bearer` for a ticket call: the ticket's own secret, else the shared key. */
+fun recognitionCredential(ticketSecret: String?, apiKey: String?): String? =
+    listOf(ticketSecret, apiKey).firstOrNull { !it.isNullOrEmpty() }
 
 /** Throws [SerializationException] on a malformed body or an id outside `[A-Za-z0-9_-]{1,64}`. */
 fun decodeTicket(raw: String): Ticket {

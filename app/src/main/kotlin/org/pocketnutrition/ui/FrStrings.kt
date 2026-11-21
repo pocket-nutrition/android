@@ -199,7 +199,7 @@ object FrStrings : AppStrings {
             "la réception du résultat (7 jours au maximum après l'envoi), puis supprimé. Un enregistrement jamais envoyé reste sur " +
             "le téléphone jusqu'à son envoi ou sa suppression."
     override val VOICE_URL_LABEL = "Adresse du serveur (https)"
-    override val VOICE_KEY_LABEL = "Clé d'API"
+    override val VOICE_KEY_LABEL = "Clé d'API (serveurs auto-hébergés uniquement)"
     override val VOICE_KEY_STORED = "Une clé est enregistrée. Laissez vide pour la conserver."
     override val VOICE_SAVE = "Enregistrer"
     override val VOICE_CLEAR = "Effacer"
@@ -216,11 +216,8 @@ object FrStrings : AppStrings {
         else -> "Cette action est définitive."
     }
     override val VOICE_DELETE_CONFIRM = "Supprimer"
-    override fun voiceMissing(missingUrl: Boolean, missingKey: Boolean) = when {
-        missingUrl && missingKey -> "Il manque l'adresse du serveur et la clé d'API. Renseignez-les dans les paramètres."
-        missingUrl -> "Il manque l'adresse du serveur (https). Renseignez-la dans les paramètres."
-        else -> "Il manque la clé d'API. Renseignez-la dans les paramètres."
-    }
+    override val VOICE_NEEDS_VAULT =
+        "Les résultats de la voix et des photos arrivent dans votre coffre-fort, chiffrés pour ce téléphone seulement. Connectez-vous d'abord au coffre-fort dans les paramètres."
     override val VOICE_CANCEL = "Annuler"
     override val VOICE_SEND_NOW = "Envoyer maintenant"
     override val VOICE_RESEND = "Renvoyer"
@@ -248,6 +245,7 @@ object FrStrings : AppStrings {
             (serverMessage ?: "Échec de l'analyse") +
                 if (audioKept) " — l'enregistrement est toujours sur votre téléphone" else ""
         EntryIssue.AUDIO_LOST -> "L'enregistrement n'est plus disponible sur le téléphone"
+        EntryIssue.VAULT_REQUIRED -> "En attente — connectez-vous au coffre-fort dans les paramètres pour l'envoyer"
     }
     override val VOICE_ERR_TOO_SHORT = "Enregistrement trop court."
     override val VOICE_ERR_RECORDER = "Impossible de démarrer l'enregistrement."

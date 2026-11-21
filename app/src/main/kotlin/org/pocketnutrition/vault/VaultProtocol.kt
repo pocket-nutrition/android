@@ -16,6 +16,8 @@ object VaultProtocol {
     const val USER_KEY_ID = "user"
     /** `key_id` of records sealed to the phone's inbox public key by a drop. */
     const val INBOX_KEY_ID = "inbox"
+    /** Record type of a capture result the recognition worker deposits through a drop. */
+    const val CAPTURE_RECORD_TYPE = "capture"
 
     // The server refuses anything below these, and so does the client: a hostile server must not be able
     // to talk the phone into deriving its keys with a weak KDF. The floor IS the app's own default.

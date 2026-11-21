@@ -138,6 +138,29 @@ class FakeVaultServer(
         return VaultPassphraseChanged(account.keyringVersion, others.size)
     }
 
+    /** Drop tokens issued: token -> (account id, request). */
+    val drops = mutableMapOf<String, Pair<String, VaultDropRequest>>()
+
+    override suspend fun createDrop(apiKey: String, request: VaultDropRequest): VaultDropToken {
+        val account = owner(apiKey)
+        if (account.records.containsKey(request.recordId)) outcome(classifyVaultHttp(409, "record_exists"))
+        val token = "pnv_drop_${nextId++}"
+        drops[token] = account.id to request
+        return VaultDropToken("drop-$nextId", token, "2099-01-01T00:00:00Z")
+    }
+
+    /** `PUT /v1/drop` as the worker does it: [plaintext] sealed to [inboxPublicKey] with a drop token. */
+    fun depositAsDropHolder(token: String, inboxPublicKey: ByteArray, plaintext: String) {
+        val (accountId, request) = drops.getValue(token)
+        val account = accounts.values.first { it.id == accountId }
+        val revision = (account.records[request.recordId]?.revision ?: 0) + 1
+        account.seq += 1
+        account.records[request.recordId] = StoredRecord(
+            request.recordId, request.type, revision, request.keyId,
+            testCrypto.seal(plaintext.toByteArray(), inboxPublicKey), false, account.seq,
+        )
+    }
+
     override suspend fun sync(apiKey: String, since: Long): VaultSyncPage {
         val account = owner(apiKey)
         val rows = account.records.values.filter { it.seq > since }.sortedBy { it.seq }

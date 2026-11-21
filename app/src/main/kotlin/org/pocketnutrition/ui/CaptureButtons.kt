@@ -53,12 +53,12 @@ import org.pocketnutrition.recognition.EntryStore
 import org.pocketnutrition.recognition.MAX_RECORDING_MS
 import org.pocketnutrition.recognition.PHOTO_EXTENSION
 import org.pocketnutrition.recognition.PhotoEncoder
-import org.pocketnutrition.recognition.RecognitionSettings
 import org.pocketnutrition.recognition.formatElapsed
 import org.pocketnutrition.recognition.isUsableRecording
-import org.pocketnutrition.recognition.isValidRecognitionUrl
+import org.pocketnutrition.vault.VaultSettings
 
-private class CaptureSetup(val configured: Boolean, val urlValid: Boolean, val hasKey: Boolean)
+/** Results only travel through the vault: without a linked account a capture would have nowhere to go. */
+private class CaptureSetup(val vaultLinked: Boolean)
 
 /**
  * The microphone and camera beside the meal builder's search field: dictate the meal, or photograph it.
@@ -88,22 +88,16 @@ fun CaptureButtons(
     var permissionDialog by remember { mutableStateOf<CameraPermissionDialog?>(null) }
     var photoMenu by remember { mutableStateOf(false) }
 
-    // Off the main thread: reading the config may decrypt the key through the Keystore.
+    // Off the main thread: reading the session decrypts it through the Keystore.
     val setup by produceState<CaptureSetup?>(null) {
-        value = withContext(Dispatchers.IO) {
-            CaptureSetup(
-                configured = RecognitionSettings.config != null,
-                urlValid = isValidRecognitionUrl(RecognitionSettings.rawUrl ?: ""),
-                hasKey = RecognitionSettings.hasApiKey,
-            )
-        }
+        value = withContext(Dispatchers.IO) { CaptureSetup(vaultLinked = VaultSettings.sessions.load() != null) }
     }
 
-    /** Captures need the recognition server set up in Settings; say what is missing otherwise. */
+    /** Captures need a linked vault account (the result is sealed into it); say so otherwise. */
     fun ready(): Boolean {
         val current = setup ?: return false
-        if (!current.configured) {
-            onError(strings.voiceMissing(!current.urlValid, !current.hasKey))
+        if (!current.vaultLinked) {
+            onError(strings.VOICE_NEEDS_VAULT)
             return false
         }
         onError(null)

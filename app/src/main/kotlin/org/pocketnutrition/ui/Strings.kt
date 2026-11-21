@@ -214,7 +214,7 @@ interface AppStrings {
     val VOICE_DELETE_TITLE: String
     fun voiceDeleteBody(hasAudio: Boolean, ready: Boolean): String
     val VOICE_DELETE_CONFIRM: String
-    fun voiceMissing(missingUrl: Boolean, missingKey: Boolean): String
+    val VOICE_NEEDS_VAULT: String
     val VOICE_CANCEL: String
     val VOICE_SEND_NOW: String
     val VOICE_RESEND: String

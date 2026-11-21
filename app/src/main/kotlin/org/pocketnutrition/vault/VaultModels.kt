@@ -131,3 +131,23 @@ data class VaultPassphraseChanged(
     val version: Int,
     @SerialName("revoked_devices") val revokedDevices: Int,
 )
+
+/** `POST /v1/drops`: a write-only token for one future record, sealed to the inbox key. */
+@Serializable
+data class VaultDropRequest(
+    @SerialName("record_id") val recordId: String,
+    val type: String,
+    @SerialName("key_id") val keyId: String,
+    @SerialName("ttl_s") val ttlSeconds: Int,
+    @SerialName("max_writes") val maxWrites: Int,
+)
+
+@Serializable
+data class VaultDropToken(
+    @SerialName("drop_id") val dropId: String,
+    val token: String,
+    @SerialName("expires_at") val expiresAt: String = "",
+) {
+    /** Never prints the token. */
+    override fun toString(): String = "VaultDropToken(…)"
+}

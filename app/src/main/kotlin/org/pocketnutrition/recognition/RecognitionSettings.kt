@@ -38,11 +38,11 @@ object RecognitionSettings {
     /** The URL as saved, for prefilling the field. */
     val rawUrl: String? get() = prefs?.getString(KEY_URL, null)
 
-    /** Whether a key is currently stored and decryptable. */
+    /** Whether a key is currently stored and decryptable. Only self-hosted servers need one. */
     val hasApiKey: Boolean get() = secrets?.read() != null
 
-    /** `null` until both a valid https URL and a key are set. */
-    val config: RecognitionConfig? get() = recognitionConfigOrNull(rawUrl, secrets?.read())
+    /** Always usable: the saved server (with its key, if one was saved for it), else the official one. */
+    val config: RecognitionConfig get() = recognitionConfig(rawUrl, secrets?.read())
 
     /**
      * Saves [url] (must be https) and, when [apiKey] is non-blank, the key. A blank key leaves any

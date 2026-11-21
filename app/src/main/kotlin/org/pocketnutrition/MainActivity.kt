@@ -271,12 +271,12 @@ private fun PocketNutritionApp(
     LaunchedEffect(screen == Screen.Journal) {
         if (screen != Screen.Journal) return@LaunchedEffect
         // Off the main thread: reading the config may decrypt the key through the Keystore.
-        val config = withContext(Dispatchers.IO) { RecognitionSettings.config } ?: return@LaunchedEffect
+        val config = withContext(Dispatchers.IO) { RecognitionSettings.config }
         voiceStore.entries.forEach { entry ->
             var current = entry
             val refreshed = refreshOnce(
                 entry = entry,
-                fetch = { id, wait, known -> RecognitionApi.fetch(config, id, wait, known) },
+                fetch = { id, wait, known -> RecognitionApi.fetch(config, id, wait, known, entry.ticketSecret) },
             )
             if (refreshed != null) {
                 // Persist first; only then touch the server ticket.
@@ -284,8 +284,9 @@ private fun PocketNutritionApp(
                 current = refreshed
             }
             // A ready result whose server ticket was never deleted (loop cancelled, DELETE failed).
+            val secret = current.ticketSecret
             settleReadyTicket(current) { id ->
-                withContext(NonCancellable) { RecognitionApi.delete(config, id) }
+                withContext(NonCancellable) { RecognitionApi.delete(config, id, secret) }
             }?.let { voiceStore.upsert(it) }
         }
     }
@@ -394,11 +395,15 @@ private fun PocketNutritionApp(
                 // the local removal has been persisted.
                 current.voiceEntryId?.let { id ->
                     val consumed = voiceStore.find(id)
-                    val staleTicket = consumed?.takeIf { it.state == EntryState.READY && it.ticketDeletePending }?.ticketId
+                    val stale = consumed?.takeIf { it.state == EntryState.READY && it.ticketDeletePending }
+                    val staleTicket = stale?.ticketId
+                    val staleSecret = stale?.ticketSecret
                     if (voiceStore.remove(id) && staleTicket != null) {
                         scope.launch {
-                            val config = withContext(Dispatchers.IO) { RecognitionSettings.config } ?: return@launch
-                            withContext(NonCancellable) { runCatching { RecognitionApi.delete(config, staleTicket) } }
+                            val config = withContext(Dispatchers.IO) { RecognitionSettings.config }
+                            withContext(NonCancellable) {
+                                runCatching { RecognitionApi.delete(config, staleTicket, staleSecret) }
+                            }
                         }
                     }
                 }
