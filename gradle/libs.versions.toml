@@ -4,7 +4,7 @@
 # one line and two modules can never disagree about a dependency.
 
 [versions]
-agp = "9.5.1"
+agp = "9.5.2"
 kotlin = "2.4.21"
 # Kotlin 2.x moved the Compose compiler into a Kotlin plugin, so it tracks the Kotlin version and
 # must not be bumped independently of it.
@@ -42,7 +42,7 @@ zxing = "3.5.4"
 # JNA is pinned to the version lazysodium 5.2.0 declares, and taken as its @aar (the jar carries
 # desktop dispatchers and would clash on Android).
 lazysodium = "5.2.0"
-jna = "5.17.0"
+jna = "5.19.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
